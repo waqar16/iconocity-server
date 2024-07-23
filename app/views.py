@@ -7,7 +7,7 @@ from rest_framework import status
 from django.conf import settings
 from langchain_openai import ChatOpenAI
 from app.utils import process_image_data
-
+import re
 import requests
 from django.http import HttpResponse
 from rest_framework.views import APIView
@@ -17,6 +17,7 @@ from django.conf import settings
 
 OPENAI_API_KEY = settings.OPENAI_API_KEY
 ICON_FINDER_KEY = settings.ICON_FINDER_KEY
+FIGMA_KEY = settings.FIGMA_API_KEY
 fast_llm = ChatOpenAI(api_key=OPENAI_API_KEY, model="gpt-4o", streaming=True)
 
 
@@ -145,3 +146,92 @@ class DownloadFreePikView(APIView):
             image_content, content_type='application/octet-stream')
         response['Content-Disposition'] = f'attachment; filename={data["data"]["filename"]}.png'
         return response
+
+
+class FigmaLinkProcessAPI(APIView):
+
+    def post(self, request, *args, **kwargs):
+        result = None
+        feedback = None
+        headers = {
+            'X-Figma-Token': FIGMA_KEY
+        }
+
+        screen_link = request.data.get('screen_link')
+        figma_link = request.data.get('figma_link')
+        if not (screen_link or figma_link):
+            return Response({"error": "No link provided"}, status=status.HTTP_400_BAD_REQUEST)
+        if screen_link:
+            pattern = r'/design/([^/]+)/.*\?node-id=([^&]+)'
+            match = re.search(pattern, screen_link)
+            if match:
+                FILE_KEY = match.group(1)
+                NODE_ID = match.group(2)
+
+            FIGMA_API_URL = f'https://api.figma.com/v1/images/{FILE_KEY}?ids={NODE_ID}&format=png'
+
+            response = requests.get(FIGMA_API_URL, headers=headers)
+            if response.status_code == 200:
+                image_url = response.json()['images'][NODE_ID.replace('-', ':')]
+                image_response = requests.get(image_url)
+                if image_response.status_code == 200:
+                    image_data = image_response.content
+                    image_base64 = base64.b64encode(image_data).decode('utf-8')
+                    result = process_image_data(image_base64)
+
+        if figma_link:
+            pattern = r'/design/([^/]+)/.*\?node-id=([^&]+)'
+            match = re.search(pattern, figma_link)
+            if match:
+                FILE_KEY = match.group(1)
+            FIGMA_API_URL = f'https://api.figma.com/v1/files/{FILE_KEY}'
+            response = requests.get(FIGMA_API_URL, headers=headers)
+            if response.status_code == 200:
+                feedback = response.json()
+                data = {
+                    'figma_url': FIGMA_API_URL,
+                    'figma_response': feedback
+                }
+                return Response(data=data, status=status.HTTP_200_OK)
+
+        style = result.get("style", "")
+        category = result.get("category", "")
+        context = result.get("context", "")
+        content_specifics = result.get("content_specifics", "")
+        technical_aspects = result.get("technical_aspects", "")
+
+        f_query = f"{style} {category} {context} {content_specifics} {technical_aspects}"
+
+        # Freepik API request
+        f_url = "https://api.freepik.com/v1/icons"
+        querystring = {"term": f_query, "thumbnail_size": "24", "per_page": "10",
+                       "page": "1", }
+        f_headers = {
+            "x-freepik-api-key": "FPSX19dd1bf8e6534123a705ed38678cb8d1"}
+
+        f_response = requests.get(f_url, headers=f_headers, params=querystring)
+        f_json_data = f_response.json()
+
+        # Extract Freepik icon data
+        f_icons_list = []
+        for icon in f_json_data.get('data', []):
+            if icon.get('thumbnails'):
+                f_icons_list.append({
+                    'id': icon.get('id'),
+                    'url': icon['thumbnails'][0].get('url')
+                })
+
+        response_data = {
+            'attributes': {
+                'style': style,
+                'category': category,
+                'context': context,
+                'content_specifics': content_specifics,
+                'technical_aspects': technical_aspects
+            },
+            'f_icons': f_icons_list,
+            'screen_link': image_url,
+            'figma_link': feedback,
+        }
+
+        return Response(response_data, status=status.HTTP_200_OK)
