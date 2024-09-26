@@ -18,7 +18,7 @@ from django.conf import settings
 OPENAI_API_KEY = settings.OPENAI_API_KEY
 ICON_FINDER_KEY = settings.ICON_FINDER_KEY
 FIGMA_KEY = settings.FIGMA_API_KEY
-fast_llm = ChatOpenAI(api_key=OPENAI_API_KEY, model="gpt-4o", streaming=True)
+fast_llm = ChatOpenAI(api_key=OPENAI_API_KEY, model="gpt-4o-mini", streaming=True)
 
 
 class ImageProcessView(APIView):
@@ -32,14 +32,17 @@ class ImageProcessView(APIView):
         image_base64 = base64.b64encode(image_data).decode('utf-8')
         result = process_image_data(image_base64)
 
-        style = result.get("style", "")
-        category = result.get("category", "")
-        context = result.get("context", "")
-        content_specifics = result.get("content_specifics", "")
-        technical_aspects = result.get("technical_aspects", "")
+        color_palette = result.get("color_palette", "")
+        iconography = result.get("iconography", "")
+        brand_style = result.get("brand_style", "")
+        gradient_usage = result.get("gradient_usage", "")
+        imagery = result.get("imagery", "")
+        shadow_and_depth = result.get("shadow_and_depth", "")
+        line_thickness = result.get("line_thickness", "")
+        corner_rounding = result.get("corner_rounding", "")
 
-        f_query = f"{style} {category} {context} {content_specifics} {technical_aspects}"
-        query = f"{style}"
+        f_query = f"{color_palette} {iconography} {brand_style} {gradient_usage} {imagery} {shadow_and_depth} {line_thickness} {corner_rounding}"
+        query = f"{iconography}"
 
         # Iconfinder API request
         url = f"https://api.iconfinder.com/v4/icons/search?query={query}&count=10"
@@ -84,11 +87,14 @@ class ImageProcessView(APIView):
 
         response_data = {
             'attributes': {
-                'style': style,
-                'category': category,
-                'context': context,
-                'content_specifics': content_specifics,
-                'technical_aspects': technical_aspects
+                'color_palette': color_palette,
+                'iconography': iconography,
+                'brand_style': brand_style,
+                'gradient_usage': gradient_usage,
+                'imagery': imagery,
+                'shadow_and_depth': shadow_and_depth,
+                'line_thickness': line_thickness,
+                'corner_rounding': corner_rounding,
             },
             'icons': icon_data_list,
             'f_icons': f_icons_list
@@ -194,13 +200,16 @@ class FigmaLinkProcessAPI(APIView):
                 }
                 return Response(data=data, status=status.HTTP_200_OK)
 
-        style = result.get("style", "")
-        category = result.get("category", "")
-        context = result.get("context", "")
-        content_specifics = result.get("content_specifics", "")
-        technical_aspects = result.get("technical_aspects", "")
+        color_palette = result.get("color_palette", "")
+        iconography = result.get("iconography", "")
+        brand_style = result.get("brand_style", "")
+        gradient_usage = result.get("gradient_usage", "")
+        imagery = result.get("imagery", "")
+        shadow_and_depth = result.get("shadow_and_depth", "")
+        line_thickness = result.get("line_thickness", "")
+        corner_rounding = result.get("corner_rounding", "")
 
-        f_query = f"{style} {category} {context} {content_specifics} {technical_aspects}"
+        f_query = f"{color_palette} {iconography} {brand_style} {gradient_usage} {imagery} {shadow_and_depth} {line_thickness} {corner_rounding}"
 
         # Freepik API request
         f_url = "https://api.freepik.com/v1/icons"
@@ -223,11 +232,14 @@ class FigmaLinkProcessAPI(APIView):
 
         response_data = {
             'attributes': {
-                'style': style,
-                'category': category,
-                'context': context,
-                'content_specifics': content_specifics,
-                'technical_aspects': technical_aspects
+                'color_palette': color_palette,
+                'iconography': iconography,
+                'brand_style': brand_style,
+                'gradient_usage': gradient_usage,
+                'imagery': imagery,
+                'shadow_and_depth': shadow_and_depth,
+                'line_thickness': line_thickness,
+                'corner_rounding': corner_rounding,
             },
             'f_icons': f_icons_list,
             'screen_link': image_url,

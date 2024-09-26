@@ -7,57 +7,77 @@ from langchain_core.output_parsers import JsonOutputParser
 
 
 class ImageInformation(BaseModel):
-    style: str = Field(description="the shape of the picture")
-    category: str = Field(description="the category of the picture belongs to")
-    context: str = Field(description="The purpose of the picture")
-    content_specifics: str = Field(description="Content of the image related")
-    cultural_and_seasonal: str = Field(
-        description="the cultural and seasonal of the picture")
-    technical_aspects: str = Field(
-        description="Technology and the technical aspects of the picture")
-
+    color_palette: str = Field(description="The color palette of the picture")
+    iconography: str = Field(description="The iconography of the picture")
+    brand_style: str = Field(description="The band style of the picture")
+    gradient_usage: str = Field(description="The gradient usage of the picture")
+    imagery: str = Field(description="The imagery of the picture")
+    shadow_and_depth: str = Field(description="The shadow and depth of the picture")
+    line_thickness: str = Field(description="The line thickness of the picture")
+    corner_rounding: str = Field(description="The corner rounding of the picture")
 
 parser = JsonOutputParser(pydantic_object=ImageInformation)
 
 
 def process_image_data(image_base64: str):
-    vision_prompt = """
-    Given the image, provide the following information:
+    vision_prompt = """Instruction:
+    Analyze the design to extract specific visual attributes. 
+    Review the design carefully and identify the following 
+    attributes:
+    1.Color Palette:
+    • Identify the primary color used in the design.
+    • Determine the accent color that complements the primary palette.
+    • Note the background color.
+    • Assess the contrast level (high contrast vs. low contrast).
     
-    Identify and List Image Attributes
+    2. Iconography:
+    • Check if the design includes any icons.
+    • Identify the style of the icons (choose one: Flat, Outline, Filled).
+    • Observe the relative size of the icons (choose one: Small, Medium, Large).
+    • Describe the shape of the icons (choose one: Rounded, Square, Freeform).
+    
+    3.Brand Style:
+    • Determine the overall style and tone of the design. Categorize it as one of the following:
+        • Corporate: Formal, professional, typically used for business or financial services.
+        • Casual: Friendly, relaxed, often seen in lifestyle or personal brand designs.
+        • Modern: Minimalistic, clean, often characterized by simplicity and elegance.
+        • Playful: Vibrant, fun, colorful, often used for children's products or entertainment brands.
+        • If the design represents a specific industry or niche, choose an appropriate label (e.g., Construction, \
+        Education, Healthcare).
 
-Please review the uploaded image and identify any attributes from the list below that are present. Extract and list these attributes accordingly:
+    4. Imagery:
+    • Note the style of imagery used (choose one: Illustrative, Photorealistic).
+    • Identify the theme of the imagery (choose one: Nature, Technology, Abstract).
+    
+    5. Gradient Usage:
+    • Detect the presence of gradients in the design.
+    • If gradients are present, identify the direction (choose one: Linear, Radial) and the dominant gradient color stop.
+    • If no gradients are present, label this as "None".
+    
+    6. Shadow and Depth:
+    • Check for the use of shadows (choose one: Drop shadows, Inner shadows, None).
+    • Determine the depth effect created by these shadows (choose one: Flat, Elevated).
 
-Style
+    7. Line Thickness:
+    • Assess the consistency of line weight throughout the design (choose one: Thick, Thin, Variable).
 
-Design Style: e.g., Flat, Handdrawn
-Visual Style: e.g., Outline, Filled
-Complexity: e.g., Simple, Detailed
-Category/Theme
+    8. Corner Rounding:
+    •  Identify the degree of corner rounding in shapes (choose one: Sharp corners, Slightly rounded, Fully rounded).
+    
+    Output:
+    • For each of the above attributes, populate the results as a single keyword representing the attribute detected. \
+    Avoid using non-descriptive answers like "Yes" or "No"; instead, specify relevant details or use "None" where \
+    applicable.
+    Example Output:
+        • Color Palette: Blue, Yellow, White, High Contrast
+        • Iconography: Flat, Medium, Rounded
+        • Brand Style: Corporate
+        • Imagery: Illustrative, Technology
+        • Gradient Usage: Linear, Blue-Yellow
+        • Shadow and Depth: Drop shadows, Elevated
+        • Line Thickness: Thin
+        • Corner Rounding: Slightly rounded"""
 
-General Theme: e.g., Business, Technology
-Specific Theme: e.g., Holidays, Sports
-Industry: e.g., Healthcare, Education
-Context/Usage
-
-Usage Context: e.g., Web, Mobile
-Audience: e.g., Kids, Adults
-Purpose: e.g., Decorative, Informative
-Content Specifics
-
-Objects: e.g., Animals, Food
-Activities: e.g., Cooking, Sports
-Concepts: e.g., Abstract, Love & Romance
-Cultural and Seasonal
-
-Cultural Events: e.g., Chinese New Year, Ramadan
-Seasons: e.g., Summer, Winter
-Holidays: e.g., Christmas, Easter
-Technical Aspects
-
-Technology: e.g., AI, Mobile Devices
-Health & Fitness: e.g., Yoga, Gym
-    """
 
     # chain decorator to make it runnable
     @chain
