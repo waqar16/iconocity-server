@@ -4,7 +4,7 @@ from langchain_core.messages import HumanMessage
 from langchain_openai import ChatOpenAI
 from langchain_core.runnables import chain
 from langchain_core.output_parsers import JsonOutputParser
-
+import webcolors
 
 class ImageInformation(BaseModel):
     color_palette: str = Field(description="The color palette of the picture")
@@ -103,3 +103,34 @@ def process_image_data(image_base64: str):
 
     vision_chain = load_image_chain | image_model | parser
     return vision_chain.invoke({'image': image_base64, 'prompt': vision_prompt})
+
+
+def custom_error_message(errors):
+    for key, value in errors.items():
+        if isinstance(value, list):
+            return {'error': value[0].replace('field', key + ' field')}
+        elif isinstance(value, dict):
+            return custom_error_message(value)
+    return {'error': 'Unknown error'}
+
+
+def Color_Available_in_Filter(color):
+    list = [
+        'blue',
+        'black',
+        'cyan',
+        'chartreuse',
+        'azure',
+        'gray',
+        'green',
+        'orange',
+        'red',
+        'rose',
+        'spring-green',
+        'violet',
+        'white',
+        'yellow',
+    ]
+    if color in list:
+        return True
+    return False
