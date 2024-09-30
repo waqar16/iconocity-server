@@ -7,7 +7,7 @@ from rest_framework import status
 from django.conf import settings
 from langchain_openai import ChatOpenAI
 from app.utils import process_image_data, custom_error_message, Color_Available_in_Filter
-from app.serializers import ProjectSerializer, ProjectListSerializer, ProjectIconListSerializer
+from app.serializers import ProjectSerializer, ProjectListSerializer, ProjectIconListSerializer, ProjectHistorySerializer
 import re
 import requests
 from django.http import HttpResponse
@@ -16,6 +16,8 @@ from rest_framework.response import Response
 from rest_framework import status
 from django.conf import settings
 from app.models import Project
+from django.core.paginator import Paginator
+
 OPENAI_API_KEY = settings.OPENAI_API_KEY
 ICON_FINDER_KEY = settings.ICON_FINDER_KEY
 FIGMA_KEY = settings.FIGMA_API_KEY
@@ -58,19 +60,19 @@ class ImageProcessView(APIView):
             # add Filter in queryString and query
             if color_filter and style_filter:
                 f_query = f"{color_palette} {iconography} {brand_style} {gradient_usage} {imagery} {shadow_and_depth} {line_thickness} {corner_rounding}"
-                querystring = {"term": f_query, "thumbnail_size": "24", "per_page": "10",
+                querystring = {"term": f_query, "thumbnail_size": "256", "per_page": "10",
                                "page": "1", "filters[color]": icon_color_name, "filters[shape]": icon_style }
             elif color_filter:
                 f_query = f"{color_palette} {iconography} {brand_style} {gradient_usage} {imagery} {shadow_and_depth} {line_thickness} {corner_rounding}"
-                querystring = {"term": f_query, "thumbnail_size": "24", "per_page": "10",
+                querystring = {"term": f_query, "thumbnail_size": "256", "per_page": "10",
                                "page": "1", "filters[color]": icon_color_name}
             elif style_filter:
                 f_query = f"{color_palette} {iconography} {brand_style} {gradient_usage} {imagery} {shadow_and_depth} {line_thickness} {corner_rounding}"
-                querystring = {"term": f_query, "thumbnail_size": "24", "per_page": "10",
+                querystring = {"term": f_query, "thumbnail_size": "256", "per_page": "10",
                                "page": "1", "filters[shape]": icon_style}
             else:
                 f_query = f"{icon_color_name} {icon_style} {color_palette} {iconography} {brand_style} {gradient_usage} {imagery} {shadow_and_depth} {line_thickness} {corner_rounding}"
-                querystring = {"term": f_query, "thumbnail_size": "24", "per_page": "10",
+                querystring = {"term": f_query, "thumbnail_size": "256", "per_page": "10",
                                "page": "1", }
 
             f_url = "https://api.freepik.com/v1/icons"
@@ -89,6 +91,8 @@ class ImageProcessView(APIView):
                         'id': icon.get('id'),
                         'url': icon['thumbnails'][0].get('url')
                     })
+                    if len(f_icons_list) >= 150:
+                        break
             #Save data in Project Modal
             attributes = {
                 'color_palette': color_palette,
@@ -197,7 +201,7 @@ class FigmaLinkProcessAPI(APIView):
 
                 response = requests.get(FIGMA_API_URL, headers=headers)
                 if response.status_code == 404:
-                    return Response({"error": "You are Not Authorized to Figma Link"}, status=status.HTTP_400_BAD_REQUEST)
+                    return Response({"error": "Figma Link Must be Public"}, status=status.HTTP_400_BAD_REQUEST)
                 if response.status_code == 200:
                     image_url = response.json()['images'][NODE_ID.replace('-', ':')]
                     image_response = requests.get(image_url)
@@ -242,19 +246,19 @@ class FigmaLinkProcessAPI(APIView):
             # add Filter in queryString and query
             if color_filter and style_filter:
                 f_query = f"{color_palette} {iconography} {brand_style} {gradient_usage} {imagery} {shadow_and_depth} {line_thickness} {corner_rounding}"
-                querystring = {"term": f_query, "thumbnail_size": "24", "per_page": "10",
+                querystring = {"term": f_query, "thumbnail_size": "256", "per_page": "10",
                                "page": "1", "filters[color]": icon_color_name, "filters[shape]": icon_style}
             elif color_filter:
                 f_query = f"{color_palette} {iconography} {brand_style} {gradient_usage} {imagery} {shadow_and_depth} {line_thickness} {corner_rounding}"
-                querystring = {"term": f_query, "thumbnail_size": "24", "per_page": "10",
+                querystring = {"term": f_query, "thumbnail_size": "256", "per_page": "10",
                                "page": "1", "filters[color]": icon_color_name}
             elif style_filter:
                 f_query = f"{color_palette} {iconography} {brand_style} {gradient_usage} {imagery} {shadow_and_depth} {line_thickness} {corner_rounding}"
-                querystring = {"term": f_query, "thumbnail_size": "24", "per_page": "10",
+                querystring = {"term": f_query, "thumbnail_size": "256", "per_page": "10",
                                "page": "1", "filters[shape]": icon_style}
             else:
                 f_query = f"{icon_color_name} {icon_style} {color_palette} {iconography} {brand_style} {gradient_usage} {imagery} {shadow_and_depth} {line_thickness} {corner_rounding}"
-                querystring = {"term": f_query, "thumbnail_size": "24", "per_page": "10",
+                querystring = {"term": f_query, "thumbnail_size": "256", "per_page": "10",
                                "page": "1", }
 
             # Freepik API request
@@ -273,6 +277,8 @@ class FigmaLinkProcessAPI(APIView):
                         'id': icon.get('id'),
                         'url': icon['thumbnails'][0].get('url')
                     })
+                    if len(f_icons_list) >= 150:
+                        break
 
             #Save data in Project Modal
             attributes = {
@@ -308,14 +314,32 @@ class GetProjectListApi(APIView):
 
 
 class GetProjectIconListApi(APIView):
+
     def post(self, request, *args, **kwargs):
         try:
             project_id = request.data.get('project_id')
+            page = request.data.get('page')
+            page_size = request.data.get('page_size')
+
             if not project_id:
                 return Response({"error": "Project ID is required"}, status=status.HTTP_400_BAD_REQUEST)
             project_list = Project.objects.get(id=project_id)
             serializer = ProjectIconListSerializer(project_list)
-            return Response(serializer.data["f_icons"], status=status.HTTP_200_OK)
+
+            f_icons = serializer.data["f_icons"]
+            page = int(page) if page else 1
+            page_size = int(page_size) if page_size else 10
+
+            start_index = (page - 1) * page_size
+            end_index = start_index + page_size
+            paginated_f_icons = f_icons[start_index:end_index]
+
+            response_data = {
+                "count": len(f_icons),
+                "results": paginated_f_icons
+            }
+
+            return Response(response_data, status=status.HTTP_200_OK)
         except Project.DoesNotExist:
             return Response({"error": "Project does not exist"}, status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
@@ -337,6 +361,20 @@ class ChangeProjectName(APIView):
             return Response({"error": "Project does not exist"}, status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
             return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+class GetProjectHistoryListApi(APIView):
+    def post(self, request, *args, **kwargs):
+        try:
+            project_id = request.data.get('project_id')
+            if not project_id:
+                return Response({"error": "Please Provide Project Id"}, status.HTTP_400_BAD_REQUEST)
+            project_obj = Project.objects.get(pk=project_id)
+        except Project.DoesNotExist:
+            return Response({"detail": "Project Does Not Exist"}, status=status.HTTP_404_NOT_FOUND)
+
+        history = project_obj.history.all()
+        serializer = ProjectHistorySerializer(history, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
 
 

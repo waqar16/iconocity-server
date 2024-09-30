@@ -6,6 +6,16 @@ class ProjectSerializer(serializers.ModelSerializer):
         model = Project
         exclude = ['created_at', 'updated_at']
 
+class ProjectWithHistorySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Project
+        exclude = ['created_at', 'updated_at']
+
+    def save(self, **kwargs):
+        # Get the instance if it exists
+        instance = self.instance
+        instance.save_with_historical_record()
+
 class ProjectListSerializer(serializers.ModelSerializer):
     class Meta:
         model = Project
@@ -20,3 +30,8 @@ class ProjectIconAttributesSerializer(serializers.ModelSerializer):
     class Meta:
         model = Project
         fields = ['attributes']
+
+class ProjectHistorySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Project.history.model
+        fields = ['id', 'name', 'created_at', 'history_change_reason']

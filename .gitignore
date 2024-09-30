@@ -2,3 +2,9 @@
 db.sqlite3
 .venv
 venv
+autoicon_venv
+
+.idea/
+app/__pycache__/
+app/migrations/__pycache__/
+app/migrations

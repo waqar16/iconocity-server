@@ -6,7 +6,8 @@ from app.views import (
     FigmaLinkProcessAPI,
     GetProjectListApi,
     GetProjectIconListApi,
-    ChangeProjectName
+    ChangeProjectName,
+    GetProjectHistoryListApi
 )
 
 urlpatterns = [
@@ -17,4 +18,6 @@ urlpatterns = [
     path('getProjectList', GetProjectListApi.as_view(), name='get_project_list'),
     path('getProjectIconList/', GetProjectIconListApi.as_view(), name='get_project_icon'),
     path('changeProjectName/', ChangeProjectName.as_view(), name='change_project_name'),
+    path('getProjectHistoryList/', GetProjectHistoryListApi.as_view(), name='get_project_history'),
+
 ]
