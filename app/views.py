@@ -27,9 +27,9 @@ class ImageProcessView(APIView):
     def post(self, request, *args, **kwargs):
         try:
             image_file = request.FILES.get('image')
-            icon_color = request.data.get('icon_color')
+            icon_color_hex, icon_color_name = request.data.get('icon_color'), None
             icon_style = request.data.get('icon_style')
-
+            color_filter, style_filter = False, True if icon_style else False
             if not image_file:
                 return Response({"error": "No image file provided"}, status=status.HTTP_400_BAD_REQUEST)
 
@@ -46,40 +46,40 @@ class ImageProcessView(APIView):
             line_thickness = result.get("line_thickness", "")
             corner_rounding = result.get("corner_rounding", "")
 
-            f_query = f"{icon_color} {icon_style} {color_palette} {iconography} {brand_style} {gradient_usage} {imagery} {shadow_and_depth} {line_thickness} {corner_rounding}"
-            query = f"{iconography}"
+            #Extract Color from Hex Code
+            if icon_color_hex:
+                try:
+                    color_name = webcolors.hex_to_name(icon_color_hex)
+                    print(color_name)
+                    color_filter, icon_color_name = Color_Available_in_Filter(color_name)
+                except ValueError:
+                    color_filter = False
 
-            # Iconfinder API request
-            url = f"https://api.iconfinder.com/v4/icons/search?query={query}&count=10"
-            headers = {
-                "accept": "application/json",
-                "Authorization": f"Bearer {ICON_FINDER_KEY}"
-            }
+            # add Filter in queryString and query
+            if color_filter and style_filter:
+                f_query = f"{color_palette} {iconography} {brand_style} {gradient_usage} {imagery} {shadow_and_depth} {line_thickness} {corner_rounding}"
+                querystring = {"term": f_query, "thumbnail_size": "24", "per_page": "10",
+                               "page": "1", "filters[color]": icon_color_name, "filters[shape]": icon_style }
+            elif color_filter:
+                f_query = f"{color_palette} {iconography} {brand_style} {gradient_usage} {imagery} {shadow_and_depth} {line_thickness} {corner_rounding}"
+                querystring = {"term": f_query, "thumbnail_size": "24", "per_page": "10",
+                               "page": "1", "filters[color]": icon_color_name}
+            elif style_filter:
+                f_query = f"{color_palette} {iconography} {brand_style} {gradient_usage} {imagery} {shadow_and_depth} {line_thickness} {corner_rounding}"
+                querystring = {"term": f_query, "thumbnail_size": "24", "per_page": "10",
+                               "page": "1", "filters[shape]": icon_style}
+            else:
+                f_query = f"{icon_color_name} {icon_style} {color_palette} {iconography} {brand_style} {gradient_usage} {imagery} {shadow_and_depth} {line_thickness} {corner_rounding}"
+                querystring = {"term": f_query, "thumbnail_size": "24", "per_page": "10",
+                               "page": "1", }
 
-            response = requests.get(url, headers=headers)
-            json_data = response.json()
-
-            # Freepik API request
             f_url = "https://api.freepik.com/v1/icons"
-            querystring = {"term": f_query, "thumbnail_size": "24", "per_page": "10",
-                           "page": "1", }
             f_headers = {
                 "x-freepik-api-key": "FPSX19dd1bf8e6534123a705ed38678cb8d1"}
 
             f_response = requests.get(f_url, headers=f_headers, params=querystring)
             f_json_data = f_response.json()
 
-            icon_data_list = []
-            for icon in json_data.get('icons', []):
-                if not icon['is_premium']:
-                    for raster_size in icon['raster_sizes']:
-                        if raster_size['size'] == 20:  # Check if the size is 20
-                            for format_info in raster_size['formats']:
-                                icon_data = {
-                                    'preview_url': format_info['preview_url'],
-                                    'download_url': format_info['download_url']
-                                }
-                                icon_data_list.append(icon_data)
 
             # Extract Freepik icon data
             f_icons_list = []
@@ -178,8 +178,9 @@ class FigmaLinkProcessAPI(APIView):
 
             screen_link = request.data.get('screen_link')
             figma_link = request.data.get('figma_link')
-            icon_color = request.data.get('icon_color', '')
-            icon_style = request.data.get('icon_style', '')
+            icon_color_hex, icon_color_name = request.data.get('icon_color'), None
+            icon_style = request.data.get('icon_style')
+            color_filter, style_filter = False, True if icon_style else False
 
             if not (screen_link or figma_link):
                 return Response({"error": "No link provided"}, status=status.HTTP_400_BAD_REQUEST)
@@ -189,10 +190,14 @@ class FigmaLinkProcessAPI(APIView):
                 if match:
                     FILE_KEY = match.group(1)
                     NODE_ID = match.group(2)
+                else:
+                    return Response({"error": "Please Provide Valid Link"}, status=status.HTTP_400_BAD_REQUEST)
 
                 FIGMA_API_URL = f'https://api.figma.com/v1/images/{FILE_KEY}?ids={NODE_ID}&format=png'
 
                 response = requests.get(FIGMA_API_URL, headers=headers)
+                if response.status_code == 404:
+                    return Response({"error": "You are Not Authorized to Figma Link"}, status=status.HTTP_400_BAD_REQUEST)
                 if response.status_code == 200:
                     image_url = response.json()['images'][NODE_ID.replace('-', ':')]
                     image_response = requests.get(image_url)
@@ -225,12 +230,35 @@ class FigmaLinkProcessAPI(APIView):
             line_thickness = result.get("line_thickness", "")
             corner_rounding = result.get("corner_rounding", "")
 
-            f_query = f"{icon_color} {icon_style} {color_palette} {iconography} {brand_style} {gradient_usage} {imagery} {shadow_and_depth} {line_thickness} {corner_rounding}"
+            # Extract Color from Hex Code
+            if icon_color_hex:
+                try:
+                    color_name = webcolors.hex_to_name(icon_color_hex)
+                    print(color_name)
+                    color_filter, icon_color_name = Color_Available_in_Filter(color_name)
+                except ValueError:
+                    color_filter = False
+
+            # add Filter in queryString and query
+            if color_filter and style_filter:
+                f_query = f"{color_palette} {iconography} {brand_style} {gradient_usage} {imagery} {shadow_and_depth} {line_thickness} {corner_rounding}"
+                querystring = {"term": f_query, "thumbnail_size": "24", "per_page": "10",
+                               "page": "1", "filters[color]": icon_color_name, "filters[shape]": icon_style}
+            elif color_filter:
+                f_query = f"{color_palette} {iconography} {brand_style} {gradient_usage} {imagery} {shadow_and_depth} {line_thickness} {corner_rounding}"
+                querystring = {"term": f_query, "thumbnail_size": "24", "per_page": "10",
+                               "page": "1", "filters[color]": icon_color_name}
+            elif style_filter:
+                f_query = f"{color_palette} {iconography} {brand_style} {gradient_usage} {imagery} {shadow_and_depth} {line_thickness} {corner_rounding}"
+                querystring = {"term": f_query, "thumbnail_size": "24", "per_page": "10",
+                               "page": "1", "filters[shape]": icon_style}
+            else:
+                f_query = f"{icon_color_name} {icon_style} {color_palette} {iconography} {brand_style} {gradient_usage} {imagery} {shadow_and_depth} {line_thickness} {corner_rounding}"
+                querystring = {"term": f_query, "thumbnail_size": "24", "per_page": "10",
+                               "page": "1", }
 
             # Freepik API request
             f_url = "https://api.freepik.com/v1/icons"
-            querystring = {"term": f_query, "thumbnail_size": "24", "per_page": "10",
-                           "page": "1", }
             f_headers = {
                 "x-freepik-api-key": "FPSX19dd1bf8e6534123a705ed38678cb8d1"}
 
@@ -269,6 +297,7 @@ class FigmaLinkProcessAPI(APIView):
 
             return Response(project_serializer_obj.data, status=status.HTTP_200_OK)
         except Exception as e:
+            print(str(e))
             return Response({"error": "Internal Server Error"}, status=status.HTTP_400_BAD_REQUEST)
 
 class GetProjectListApi(APIView):
@@ -291,3 +320,24 @@ class GetProjectIconListApi(APIView):
             return Response({"error": "Project does not exist"}, status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
             return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class ChangeProjectName(APIView):
+    def post(self, request, *args, **kwargs):
+        try:
+            project_id = request.data.get('project_id')
+            if not project_id:
+                return Response({"error": "Please Provide Project Id"}, status.HTTP_400_BAD_REQUEST)
+            project_obj = Project.objects.get(id=project_id)
+            project_new_name = request.data.get('new_name', project_obj.name)
+            project_obj.name = project_new_name
+            project_obj.save()
+            return Response({"data": "Project Renamed Succssfully"}, status=status.HTTP_200_OK)
+        except Project.DoesNotExist:
+            return Response({"error": "Project does not exist"}, status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+
+

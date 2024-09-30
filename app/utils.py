@@ -132,5 +132,5 @@ def Color_Available_in_Filter(color):
         'yellow',
     ]
     if color in list:
-        return True
-    return False
+        return True, color
+    return False, color

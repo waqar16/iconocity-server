@@ -15,3 +15,8 @@ class ProjectIconListSerializer(serializers.ModelSerializer):
     class Meta:
         model = Project
         fields = ['f_icons']
+
+class ProjectIconAttributesSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Project
+        fields = ['attributes']
