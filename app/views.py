@@ -1,4 +1,5 @@
 import base64
+import io
 import requests
 import json
 from rest_framework.response import Response
@@ -6,8 +7,10 @@ from rest_framework.views import APIView
 from rest_framework import status
 from django.conf import settings
 from langchain_openai import ChatOpenAI
-from app.utils import process_image_data, custom_error_message, Color_Available_in_Filter
-from app.serializers import ProjectSerializer, ProjectListSerializer, ProjectIconListSerializer, ProjectHistorySerializer
+from yaml import serialize
+import zipfile
+from app.utils import process_image_data, custom_error_message, Color_Available_in_Filter, fetch_icons
+from app.serializers import ProjectSerializer, ProjectWithHistorySerializer, ProjectListSerializer, ProjectIconListSerializer, ProjectHistorySerializer
 import re
 import requests
 from django.http import HttpResponse
@@ -23,6 +26,7 @@ ICON_FINDER_KEY = settings.ICON_FINDER_KEY
 FIGMA_KEY = settings.FIGMA_API_KEY
 fast_llm = ChatOpenAI(api_key=OPENAI_API_KEY, model="gpt-4o-mini", streaming=True)
 import webcolors
+
 
 class ImageProcessView(APIView):
 
@@ -57,42 +61,12 @@ class ImageProcessView(APIView):
                 except ValueError:
                     color_filter = False
 
-            # add Filter in queryString and query
-            if color_filter and style_filter:
-                f_query = f"{color_palette} {iconography} {brand_style} {gradient_usage} {imagery} {shadow_and_depth} {line_thickness} {corner_rounding}"
-                querystring = {"term": f_query, "thumbnail_size": "256", "per_page": "10",
-                               "page": "1", "filters[color]": icon_color_name, "filters[shape]": icon_style }
-            elif color_filter:
-                f_query = f"{color_palette} {iconography} {brand_style} {gradient_usage} {imagery} {shadow_and_depth} {line_thickness} {corner_rounding}"
-                querystring = {"term": f_query, "thumbnail_size": "256", "per_page": "10",
-                               "page": "1", "filters[color]": icon_color_name}
-            elif style_filter:
-                f_query = f"{color_palette} {iconography} {brand_style} {gradient_usage} {imagery} {shadow_and_depth} {line_thickness} {corner_rounding}"
-                querystring = {"term": f_query, "thumbnail_size": "256", "per_page": "10",
-                               "page": "1", "filters[shape]": icon_style}
-            else:
-                f_query = f"{icon_color_name} {icon_style} {color_palette} {iconography} {brand_style} {gradient_usage} {imagery} {shadow_and_depth} {line_thickness} {corner_rounding}"
-                querystring = {"term": f_query, "thumbnail_size": "256", "per_page": "10",
-                               "page": "1", }
+            #fetch Icons from free pik Api
+            f_icons_list = fetch_icons(color_filter, style_filter, color_palette,
+                                iconography, brand_style, gradient_usage, imagery,
+                                shadow_and_depth, line_thickness, corner_rounding,
+                                icon_color_name, icon_style)
 
-            f_url = "https://api.freepik.com/v1/icons"
-            f_headers = {
-                "x-freepik-api-key": "FPSX19dd1bf8e6534123a705ed38678cb8d1"}
-
-            f_response = requests.get(f_url, headers=f_headers, params=querystring)
-            f_json_data = f_response.json()
-
-
-            # Extract Freepik icon data
-            f_icons_list = []
-            for icon in f_json_data.get('data', []):
-                if icon.get('thumbnails'):
-                    f_icons_list.append({
-                        'id': icon.get('id'),
-                        'url': icon['thumbnails'][0].get('url')
-                    })
-                    if len(f_icons_list) >= 150:
-                        break
             #Save data in Project Modal
             attributes = {
                 'color_palette': color_palette,
@@ -136,36 +110,61 @@ class ImageDownloadView(APIView):
         image_content = response.content
         response = HttpResponse(
             image_content, content_type='application/octet-stream')
-        response['Content-Disposition'] = 'attachment; filename=image.png'
+        response['Content-Disposition'] = 'attachment; filename=image.svg'
         return response
 
 
 class DownloadFreePikView(APIView):
 
     def get(self, request, *args, **kwargs):
-        icon_id = request.GET.get('id')
-        if not icon_id:
-            return Response({"error": "No icon ID provided"}, status=status.HTTP_400_BAD_REQUEST)
+        page_size = request.GET.get('page_size', '5')
+        page = request.GET.get('page', '1')
+        history_id = request.GET.get('history_id')
+        if not page_size or not page or not history_id:
+            return Response({"error": "No page size or page number provided"}, status=status.HTTP_400_BAD_REQUEST)
 
-        url = f"https://api.freepik.com/v1/icons/{icon_id}/download"
-        headers = {"x-freepik-api-key": "FPSX19dd1bf8e6534123a705ed38678cb8d1"}
+        try:
+            history_obj = Project.history.get(pk=history_id)
+            serializer = ProjectHistorySerializer(history_obj)
+            f_icons = serializer.data["f_icons"]
+            page = int(page) if page else 1
+            page_size = int(page_size) if page_size else 10
 
-        response = requests.get(url, headers=headers)
-        if response.status_code != 200:
-            return Response({"error": "Failed to download icon"}, status=response.status_code)
+            start_index = (page - 1) * page_size
+            end_index = start_index + page_size
+            icons_list = f_icons[start_index:end_index]
 
-        data = response.json()
-        download_url = data["data"]["url"]
+        except Project.history.model.DoesNotExist:
+            return Response({"error": "History does not exist"}, status=status.HTTP_400_BAD_REQUEST)
 
-        # Download the actual image
-        image_response = requests.get(download_url)
-        if image_response.status_code != 200:
-            return Response({"error": "Failed to download image from FreePik"}, status=image_response.status_code)
 
-        image_content = image_response.content
-        response = HttpResponse(
-            image_content, content_type='application/octet-stream')
-        response['Content-Disposition'] = f'attachment; filename={data["data"]["filename"]}.png'
+
+        zip_buffer = io.BytesIO()
+
+        with zipfile.ZipFile(zip_buffer, 'w') as zf:
+            for icon in icons_list:
+                icon_id = icon["id"]
+                icon_url = icon["url"]
+                try:
+                    # Download the actual image
+                    image_response = requests.get(icon_url, timeout=10)
+                    if image_response.status_code != 200:
+                        continue  # Skip this icon if download fails
+
+                    # Write the image to the zip file
+                    zf.writestr(f"{icon_id}.png", image_response.content)
+
+                except requests.exceptions.RequestException as e:
+                    # Log the error and continue
+                    print(f"Error while downloading icon {icon_id}: {str(e)}")
+                    continue
+
+        # Finalize the zip buffer
+        zip_buffer.seek(0)
+
+        # Return the zip file as an HTTP response
+        response = HttpResponse(zip_buffer, content_type='application/zip')
+        response['Content-Disposition'] = 'attachment; filename=icons.zip'
         return response
 
 
@@ -243,42 +242,10 @@ class FigmaLinkProcessAPI(APIView):
                 except ValueError:
                     color_filter = False
 
-            # add Filter in queryString and query
-            if color_filter and style_filter:
-                f_query = f"{color_palette} {iconography} {brand_style} {gradient_usage} {imagery} {shadow_and_depth} {line_thickness} {corner_rounding}"
-                querystring = {"term": f_query, "thumbnail_size": "256", "per_page": "10",
-                               "page": "1", "filters[color]": icon_color_name, "filters[shape]": icon_style}
-            elif color_filter:
-                f_query = f"{color_palette} {iconography} {brand_style} {gradient_usage} {imagery} {shadow_and_depth} {line_thickness} {corner_rounding}"
-                querystring = {"term": f_query, "thumbnail_size": "256", "per_page": "10",
-                               "page": "1", "filters[color]": icon_color_name}
-            elif style_filter:
-                f_query = f"{color_palette} {iconography} {brand_style} {gradient_usage} {imagery} {shadow_and_depth} {line_thickness} {corner_rounding}"
-                querystring = {"term": f_query, "thumbnail_size": "256", "per_page": "10",
-                               "page": "1", "filters[shape]": icon_style}
-            else:
-                f_query = f"{icon_color_name} {icon_style} {color_palette} {iconography} {brand_style} {gradient_usage} {imagery} {shadow_and_depth} {line_thickness} {corner_rounding}"
-                querystring = {"term": f_query, "thumbnail_size": "256", "per_page": "10",
-                               "page": "1", }
-
-            # Freepik API request
-            f_url = "https://api.freepik.com/v1/icons"
-            f_headers = {
-                "x-freepik-api-key": "FPSX19dd1bf8e6534123a705ed38678cb8d1"}
-
-            f_response = requests.get(f_url, headers=f_headers, params=querystring)
-            f_json_data = f_response.json()
-
-            # Extract Freepik icon data
-            f_icons_list = []
-            for icon in f_json_data.get('data', []):
-                if icon.get('thumbnails'):
-                    f_icons_list.append({
-                        'id': icon.get('id'),
-                        'url': icon['thumbnails'][0].get('url')
-                    })
-                    if len(f_icons_list) >= 150:
-                        break
+            f_icons_list = fetch_icons(color_filter, style_filter, color_palette,
+                                       iconography, brand_style, gradient_usage, imagery,
+                                       shadow_and_depth, line_thickness, corner_rounding,
+                                       icon_color_name, icon_style)
 
             #Save data in Project Modal
             attributes = {
@@ -375,6 +342,33 @@ class GetProjectHistoryListApi(APIView):
         history = project_obj.history.all()
         serializer = ProjectHistorySerializer(history, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
+
+class GetHistoryByHistoryIdApi(APIView):
+    def post(self, request, *args, **kwargs):
+        history_id = request.data.get('history_id')
+        page = request.data.get('page')
+        page_size = request.data.get('page_size')
+        if not history_id:
+            return Response({"error": "History ID is required"}, status.HTTP_400_BAD_REQUEST)
+        try:
+            history_obj = Project.history.get(pk=history_id)
+            serializer = ProjectHistorySerializer(history_obj)
+            f_icons = serializer.data["f_icons"]
+            page = int(page) if page else 1
+            page_size = int(page_size) if page_size else 10
+
+            start_index = (page - 1) * page_size
+            end_index = start_index + page_size
+            paginated_f_icons = f_icons[start_index:end_index]
+
+            response_data = {
+                "count": len(f_icons),
+                "results": paginated_f_icons
+            }
+            return Response(response_data, status=status.HTTP_200_OK)
+        except Project.history.model.DoesNotExist:
+            return Response([], status=status.HTTP_200_OK)
+
 
 
 

@@ -7,7 +7,8 @@ from app.views import (
     GetProjectListApi,
     GetProjectIconListApi,
     ChangeProjectName,
-    GetProjectHistoryListApi
+    GetProjectHistoryListApi,
+    GetHistoryByHistoryIdApi,
 )
 
 urlpatterns = [
@@ -19,5 +20,6 @@ urlpatterns = [
     path('getProjectIconList/', GetProjectIconListApi.as_view(), name='get_project_icon'),
     path('changeProjectName/', ChangeProjectName.as_view(), name='change_project_name'),
     path('getProjectHistoryList/', GetProjectHistoryListApi.as_view(), name='get_project_history'),
+    path('getHistoryByHistoryId/', GetHistoryByHistoryIdApi.as_view(), name='get_history_by_history_id'),
 
 ]

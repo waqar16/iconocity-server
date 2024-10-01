@@ -34,4 +34,4 @@ class ProjectIconAttributesSerializer(serializers.ModelSerializer):
 class ProjectHistorySerializer(serializers.ModelSerializer):
     class Meta:
         model = Project.history.model
-        fields = ['id', 'name', 'created_at', 'history_change_reason']
+        fields = ['history_id', 'name', 'f_icons', 'created_at', 'history_change_reason', 'id']

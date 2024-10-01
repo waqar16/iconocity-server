@@ -6,7 +6,7 @@ import requests
 from app.models import Project
 from app.serializers import ProjectIconAttributesSerializer, ProjectSerializer, ProjectWithHistorySerializer
 from query.utils import ChangeIconQueryBot
-from app.utils import custom_error_message
+from app.utils import custom_error_message, fetch_icons
 # Create your views here.
 
 class UpdateIconAttribuesByQuery(APIView):
@@ -35,9 +35,13 @@ class UpdateIconAttribuesByQuery(APIView):
                 'line_thickness': response.line_thickness if response.line_thickness else project_attributes["line_thickness"],
                 'corner_rounding': response.corner_rounding if response.corner_rounding else project_attributes["corner_rounding"],
             }
+
+            f_icons_list = fetch_icons(False, False, attributes["color_palette"],
+                                       attributes["iconography"], attributes["brand_style"] , attributes["gradient_usage"],
+                                       attributes["imagery"], attributes["shadow_and_depth"], attributes["line_thickness"], attributes["corner_rounding"])
             f_query = " ".join(attributes.values())
             print(f_query)
-            querystring = {"term": f_query, "thumbnail_size": "256", "per_page": "10",
+            querystring = {"term": f_query, "thumbnail_size": "256", "per_page": "30",
                                "page": "1", }
 
             # Freepik API request

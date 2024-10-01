@@ -5,6 +5,7 @@ from langchain_openai import ChatOpenAI
 from langchain_core.runnables import chain
 from langchain_core.output_parsers import JsonOutputParser
 import webcolors
+import requests
 
 class ImageInformation(BaseModel):
     color_palette: str = Field(description="The color palette of the picture")
@@ -115,7 +116,7 @@ def custom_error_message(errors):
 
 
 def Color_Available_in_Filter(color):
-    list = [
+    Valid_Filter_list_FREEPIK = [
         'blue',
         'black',
         'cyan',
@@ -131,6 +132,75 @@ def Color_Available_in_Filter(color):
         'white',
         'yellow',
     ]
-    if color in list:
+    if color in Valid_Filter_list_FREEPIK:
         return True, color
     return False, color
+
+
+# Function to fetch icons based on filters
+def fetch_icons(color_filter, style_filter, color_palette, iconography, brand_style,
+                gradient_usage, imagery, shadow_and_depth, line_thickness, corner_rounding,
+                icon_color_name=None, icon_style=None):
+    f_icons_list = []
+    is_above_100_icons = False
+    base_url = "https://api.freepik.com/v1/icons"
+    headers = {
+        "x-freepik-api-key": "FPSX19dd1bf8e6534123a705ed38678cb8d1"
+    }
+
+    # Create the query string based on filters
+    if color_filter and style_filter:
+        f_query = f"{color_palette} {iconography} {brand_style} {gradient_usage} {imagery} {shadow_and_depth} {line_thickness} {corner_rounding}"
+        querystring = {"term": f_query, "thumbnail_size": "256", "per_page": "100", "page": "1",
+                       "filters[color]": icon_color_name, "filters[shape]": icon_style}
+    elif color_filter:
+        f_query = f"{color_palette} {iconography} {brand_style} {gradient_usage} {imagery} {shadow_and_depth} {line_thickness} {corner_rounding}"
+        querystring = {"term": f_query, "thumbnail_size": "256", "per_page": "100", "page": "1",
+                       "filters[color]": icon_color_name}
+    elif style_filter:
+        f_query = f"{color_palette} {iconography} {brand_style} {gradient_usage} {imagery} {shadow_and_depth} {line_thickness} {corner_rounding}"
+        querystring = {"term": f_query, "thumbnail_size": "256", "per_page": "100", "page": "1",
+                       "filters[shape]": icon_style}
+    elif icon_color_name and icon_style:
+        f_query = f"{icon_color_name} {icon_style} {color_palette} {iconography} {brand_style} {gradient_usage} {imagery} {shadow_and_depth} {line_thickness} {corner_rounding}"
+        querystring = {"term": f_query, "thumbnail_size": "256", "per_page": "100", "page": "1"}
+    else:
+        f_query = f"{color_palette} {iconography} {brand_style} {gradient_usage} {imagery} {shadow_and_depth} {line_thickness} {corner_rounding}"
+        querystring = {"term": f_query, "thumbnail_size": "256", "per_page": "100", "page": "1"}
+
+    # Fetch the first batch of 100 icons
+    response = requests.get(base_url, headers=headers, params=querystring)
+    json_data = response.json()
+    try:
+        meta = json_data.get("meta")
+        total = meta["pagination"]["total"]
+        if total > 100:
+            is_above_100_icons = True
+    except:
+        is_above_100_icons = False
+
+    # Extract Freepik icon data
+    for icon in json_data.get('data', []):
+        if icon.get('thumbnails'):
+            f_icons_list.append({
+                'id': icon.get('id'),
+                'url': icon['thumbnails'][0].get('url')
+            })
+
+    if is_above_100_icons:
+        querystring['page'] = '2'
+        querystring['per_page'] = '50'
+        response = requests.get(base_url, headers=headers, params=querystring)
+        json_data = response.json()
+
+        for icon in json_data.get('data', []):
+            if icon.get('thumbnails'):
+                f_icons_list.append({
+                    'id': icon.get('id'),
+                    'url': icon['thumbnails'][0].get('url')
+                })
+    print(len(f_icons_list))
+
+    return f_icons_list
+
+
