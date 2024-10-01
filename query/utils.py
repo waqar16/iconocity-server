@@ -39,7 +39,7 @@ def ChangeIconQueryBot(message, icon_attributes, language):
     
     User Input Guidelines:
         You can change any of the following icon design settings:
-            Color Palette (e.g., primary color, accent color, background color, or contrast level).
+            Color Palette (e.g., color or contrast level).
             Iconography (e.g., flat, outlined, filled; also change the size and shape of the icon).
             Brand Style(e.g., corporate, casual, modern, playful).
             Imagery (e.g., style and theme of any images or graphics).
@@ -54,7 +54,7 @@ def ChangeIconQueryBot(message, icon_attributes, language):
     Avoid using non-descriptive answers like "Yes" or "No"; instead, specify relevant details or use "None" where \
     applicable.
     Example Output:
-        • Color Palette: Blue, Yellow, White, High Contrast
+        • Color Palette: Blue, High Contrast
         • Iconography: Flat, Medium, Rounded
         • Brand Style: Corporate
         • Imagery: Illustrative, Technology

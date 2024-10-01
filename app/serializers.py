@@ -34,4 +34,15 @@ class ProjectIconAttributesSerializer(serializers.ModelSerializer):
 class ProjectHistorySerializer(serializers.ModelSerializer):
     class Meta:
         model = Project.history.model
-        fields = ['history_id', 'name', 'f_icons', 'created_at', 'history_change_reason', 'id']
+        fields = ['history_id', 'name', 'f_icons', 'history_date', 'id']
+
+
+class ProjectUpdateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Project
+        fields = ['f_icons', 'attributes']
+
+    def save(self, **kwargs):
+        # Get the instance if it exists
+        instance = self.instance
+        instance.save_with_historical_record()

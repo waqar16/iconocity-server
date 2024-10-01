@@ -4,9 +4,11 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 import requests
 from app.models import Project
-from app.serializers import ProjectIconAttributesSerializer, ProjectSerializer, ProjectWithHistorySerializer
+from app.serializers import ProjectIconAttributesSerializer, ProjectSerializer, ProjectWithHistorySerializer, \
+    ProjectUpdateSerializer
 from query.utils import ChangeIconQueryBot
 from app.utils import custom_error_message, fetch_icons
+from rest_framework.viewsets import ModelViewSet
 # Create your views here.
 
 class UpdateIconAttribuesByQuery(APIView):
@@ -35,44 +37,27 @@ class UpdateIconAttribuesByQuery(APIView):
                 'line_thickness': response.line_thickness if response.line_thickness else project_attributes["line_thickness"],
                 'corner_rounding': response.corner_rounding if response.corner_rounding else project_attributes["corner_rounding"],
             }
+            print("after update->", attributes)
 
             f_icons_list = fetch_icons(False, False, attributes["color_palette"],
                                        attributes["iconography"], attributes["brand_style"] , attributes["gradient_usage"],
                                        attributes["imagery"], attributes["shadow_and_depth"], attributes["line_thickness"], attributes["corner_rounding"])
-            f_query = " ".join(attributes.values())
-            print(f_query)
-            querystring = {"term": f_query, "thumbnail_size": "256", "per_page": "30",
-                               "page": "1", }
-
-            # Freepik API request
-            f_url = "https://api.freepik.com/v1/icons"
-            f_headers = {
-                "x-freepik-api-key": "FPSX19dd1bf8e6534123a705ed38678cb8d1"}
-
-            f_response = requests.get(f_url, headers=f_headers, params=querystring)
-            f_json_data = f_response.json()
-
-            # Extract Freepik icon data
-            f_icons_list = []
-            for icon in f_json_data.get('data', []):
-                if icon.get('thumbnails'):
-                    f_icons_list.append({
-                        'id': icon.get('id'),
-                        'url': icon['thumbnails'][0].get('url')
-                    })
-                    if len(f_icons_list) >= 150:
-                        break
 
             project_data = {
                 'attributes': attributes,
                 'f_icons': f_icons_list,
             }
+            project_instance.f_icons = f_icons_list
+            project_instance.attributes = attributes
+            project_instance.save_with_historical_record()
 
-            project_serializer_obj = ProjectWithHistorySerializer(project_instance, data=project_data, partial=True)
-            if project_serializer_obj.is_valid():
-                project_serializer_obj.save()
-                return Response(response.response, status=status.HTTP_200_OK)
-            return Response(custom_error_message(project_serializer_obj.errors), status=status.HTTP_400_BAD_REQUEST)
+            # # project_serializer_obj = ProjectUpdateSerializer(project_instance, data=project_data, partial=True)
+            # # if project_serializer_obj.is_valid(raise_exception=True):
+            # #     project_serializer_obj.save()
+            #     print("saved", project_serializer_obj.data["attributes"])
+            print(project_instance.attributes, '##############')
+            return Response(response.response, status=status.HTTP_200_OK)
+            # return Response(custom_error_message(project_serializer_obj.errors), status=status.HTTP_400_BAD_REQUEST)
         except Project.DoesNotExist:
             return Response({'error': "Project Does Not Exist"}, status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
