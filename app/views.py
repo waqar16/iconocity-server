@@ -89,6 +89,7 @@ class ImageProcessView(APIView):
                 return Response(project_serializer_obj.data, status=status.HTTP_200_OK)
             return Response(custom_error_message(project_serializer_obj.errors), status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
+            print(str(e))
             return Response({"error": "Internal Server Error"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
@@ -120,6 +121,7 @@ class DownloadFreePikView(APIView):
         page_size = request.GET.get('page_size', '5')
         page = request.GET.get('page', '1')
         history_id = request.GET.get('history_id')
+        download_formate = request.GET.get('download_formate', 'png')
         if not page_size or not page or not history_id:
             return Response({"error": "No page size or page number provided"}, status=status.HTTP_400_BAD_REQUEST)
 

@@ -55,7 +55,6 @@ class UpdateIconAttribuesByQuery(APIView):
             # # if project_serializer_obj.is_valid(raise_exception=True):
             # #     project_serializer_obj.save()
             #     print("saved", project_serializer_obj.data["attributes"])
-            print(project_instance.attributes, '##############')
             return Response(response.response, status=status.HTTP_200_OK)
             # return Response(custom_error_message(project_serializer_obj.errors), status=status.HTTP_400_BAD_REQUEST)
         except Project.DoesNotExist:
