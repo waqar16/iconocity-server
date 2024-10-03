@@ -26,6 +26,8 @@ class UpdateIconAttribuesByQuery(APIView):
             project_attributes = serializer.data["attributes"]
             print("before attribues-->", project_attributes)
             response = ChangeIconQueryBot(query, project_attributes, language)
+            if not response.isRelated:
+                return Response(response.response, status=status.HTTP_200_OK)
             print(response)
             attributes = {
                 'color_palette': response.color_palette if response.color_palette else project_attributes["color_palette"],

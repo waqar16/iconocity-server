@@ -36,15 +36,19 @@ def process_image_data(image_base64: str):
     • Identify the style of the icons (choose one: Flat, Outline, Filled).
     • Observe the relative size of the icons (choose one: Small, Medium, Large).
     • Describe the shape of the icons (choose one: Rounded, Square, Freeform).
-    
+        
     3.Brand Style:
-    • Determine the overall style and tone of the design. Categorize it as one of the following:
+    • Determine the overall style and tone of the design.
+        Categorize it as one of the following:
         • Corporate: Formal, professional, typically used for business or financial services.
         • Casual: Friendly, relaxed, often seen in lifestyle or personal brand designs.
         • Modern: Minimalistic, clean, often characterized by simplicity and elegance.
-        • Playful: Vibrant, fun, colorful, often used for children's products or entertainment brands.
-        • If the design represents a specific industry or niche, choose an appropriate label (e.g., Construction, \
-        Education, Healthcare).
+        • Playful: Vibrant, fun, colorful, often used for children’s products or entertainment brands.
+        If the design represents a specific industry (e.g., healthcare, technology, education), specify that \
+        industry as the brand style** (e.g., "Healthcare," "Technology," "Education"). Identify the industry based \
+        on any specific visual cues, symbols, or elements related to that field (e.g., stethoscopes for healthcare, \
+        computers for technology).
+
 
     4. Imagery:
     • Note the style of imagery used (choose one: Illustrative, Photorealistic).
@@ -133,7 +137,9 @@ def Color_Available_in_Filter(color):
         'yellow',
     ]
     if color in Valid_Filter_list_FREEPIK:
+        print("filter colrr--> True- ", color)
         return True, color
+    print("filter colrr--> True- ", color)
     return False, color
 
 
@@ -162,7 +168,7 @@ def fetch_icons(color_filter, style_filter, color_palette, iconography, brand_st
         querystring = {"term": f_query, "thumbnail_size": "256", "per_page": "100", "page": "1",
                        "filters[shape]": icon_style}
     elif icon_color_name and icon_style:
-        f_query = f"{icon_color_name} {icon_style} {color_palette} {iconography} {brand_style} {gradient_usage} {imagery} {shadow_and_depth} {line_thickness} {corner_rounding}"
+        f_query = f"{icon_color_name} {icon_style} {brand_style} {gradient_usage} {imagery} {shadow_and_depth} {line_thickness} {corner_rounding}"
         querystring = {"term": f_query, "thumbnail_size": "256", "per_page": "100", "page": "1"}
     else:
         f_query = f"{color_palette} {iconography} {brand_style} {gradient_usage} {imagery} {shadow_and_depth} {line_thickness} {corner_rounding}"
