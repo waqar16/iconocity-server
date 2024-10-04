@@ -44,7 +44,7 @@ INSTALLED_APPS = [
     'corsheaders',
     'app',
     'query',
-    'simple_history'
+    'simple_history',
 ]
 
 MIDDLEWARE = [

@@ -1,16 +1,10 @@
 import base64
 import io
-import requests
-import json
-from rest_framework.response import Response
-from rest_framework.views import APIView
-from rest_framework import status
-from django.conf import settings
+
 from langchain_openai import ChatOpenAI
-from yaml import serialize
 import zipfile
-from app.utils import process_image_data, custom_error_message, Color_Available_in_Filter, fetch_icons
-from app.serializers import ProjectSerializer, ProjectWithHistorySerializer, ProjectListSerializer, ProjectIconListSerializer, ProjectHistorySerializer
+from app.utils import process_image_data, custom_error_message, Color_Available_in_Filter, fetch_icons, format_value
+from app.serializers import ProjectSerializer, ProjectListSerializer, ProjectIconListSerializer, ProjectHistorySerializer
 import re
 import requests
 from django.http import HttpResponse
@@ -19,12 +13,12 @@ from rest_framework.response import Response
 from rest_framework import status
 from django.conf import settings
 from app.models import Project
-from django.core.paginator import Paginator
 
 OPENAI_API_KEY = settings.OPENAI_API_KEY
 ICON_FINDER_KEY = settings.ICON_FINDER_KEY
 FIGMA_KEY = settings.FIGMA_API_KEY
-fast_llm = ChatOpenAI(api_key=OPENAI_API_KEY, model="gpt-4o-mini", streaming=True)
+
+fast_llm = ChatOpenAI(api_key=OPENAI_API_KEY, model="gpt4o-mini", streaming=True)
 import webcolors
 
 
@@ -43,14 +37,14 @@ class ImageProcessView(APIView):
             image_base64 = base64.b64encode(image_data).decode('utf-8')
             result = process_image_data(image_base64)
 
-            color_palette = result.get("color_palette", "")
-            iconography = result.get("iconography", "")
-            brand_style = result.get("brand_style", "")
-            gradient_usage = result.get("gradient_usage", "")
-            imagery = result.get("imagery", "")
-            shadow_and_depth = result.get("shadow_and_depth", "")
-            line_thickness = result.get("line_thickness", "")
-            corner_rounding = result.get("corner_rounding", "")
+            color_palette = format_value(result.get("color_palette", ""))
+            iconography = format_value(result.get("iconography", ""))
+            brand_style = format_value(result.get("brand_style", ""))
+            gradient_usage = format_value(result.get("gradient_usage", ""))
+            imagery = format_value(result.get("imagery", ""))
+            shadow_and_depth = format_value(result.get("shadow_and_depth", ""))
+            line_thickness = format_value(result.get("line_thickness", ""))
+            corner_rounding = format_value(result.get("corner_rounding", ""))
 
             #Extract Color from Hex Code
             if icon_color_hex:
@@ -226,14 +220,14 @@ class FigmaLinkProcessAPI(APIView):
                     }
                     return Response(data=data, status=status.HTTP_200_OK)
 
-            color_palette = result.get("color_palette", "")
-            iconography = result.get("iconography", "")
-            brand_style = result.get("brand_style", "")
-            gradient_usage = result.get("gradient_usage", "")
-            imagery = result.get("imagery", "")
-            shadow_and_depth = result.get("shadow_and_depth", "")
-            line_thickness = result.get("line_thickness", "")
-            corner_rounding = result.get("corner_rounding", "")
+            color_palette = format_value(result.get("color_palette", ""))
+            iconography = format_value(result.get("iconography", ""))
+            brand_style = format_value(result.get("brand_style", ""))
+            gradient_usage = format_value(result.get("gradient_usage", ""))
+            imagery = format_value(result.get("imagery", ""))
+            shadow_and_depth = format_value(result.get("shadow_and_depth", ""))
+            line_thickness = format_value(result.get("line_thickness", ""))
+            corner_rounding = format_value(result.get("corner_rounding", ""))
 
             # Extract Color from Hex Code
             if icon_color_hex:

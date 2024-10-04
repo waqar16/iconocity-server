@@ -47,3 +47,5 @@ tqdm==4.66.4
 typing_extensions==4.12.0
 urllib3==2.2.1
 yarl==1.9.4
+django-simple-history
+webcolors

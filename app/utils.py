@@ -4,11 +4,10 @@ from langchain_core.messages import HumanMessage
 from langchain_openai import ChatOpenAI
 from langchain_core.runnables import chain
 from langchain_core.output_parsers import JsonOutputParser
-import webcolors
 import requests
 
 class ImageInformation(BaseModel):
-    color_palette: str = Field(description="The color palette of the picture")
+    color_palette: str = Field(description="The primary color palette from the picture")
     iconography: str = Field(description="The iconography of the picture")
     brand_style: str = Field(description="The band style of the picture")
     gradient_usage: str = Field(description="The gradient usage of the picture")
@@ -25,11 +24,13 @@ def process_image_data(image_base64: str):
     Analyze the design to extract specific visual attributes. 
     Review the design carefully and identify the following 
     attributes:
+    
     1.Color Palette:
     • Identify the primary color used in the design.
     • Determine the accent color that complements the primary palette.
     • Note the background color.
     • Assess the contrast level (high contrast vs. low contrast).
+    • Get Major color only, and it should be only one color name
     
     2. Iconography:
     • Check if the design includes any icons.
@@ -174,6 +175,8 @@ def fetch_icons(color_filter, style_filter, color_palette, iconography, brand_st
         f_query = f"{color_palette} {iconography} {brand_style} {gradient_usage} {imagery} {shadow_and_depth} {line_thickness} {corner_rounding}"
         querystring = {"term": f_query, "thumbnail_size": "256", "per_page": "100", "page": "1"}
 
+    querystring['order'] = 'relevance'
+
     # Fetch the first batch of 100 icons
     response = requests.get(base_url, headers=headers, params=querystring)
     json_data = response.json()
@@ -209,4 +212,9 @@ def fetch_icons(color_filter, style_filter, color_palette, iconography, brand_st
 
     return f_icons_list
 
-
+def format_value(value):
+    if value is None:
+        return ""
+    if value == "None":
+        return ""
+    return value
