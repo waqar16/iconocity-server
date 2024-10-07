@@ -43,6 +43,8 @@ INSTALLED_APPS = [
     'rest_framework',
     'corsheaders',
     'app',
+    'query',
+    'simple_history',
 ]
 
 MIDDLEWARE = [
@@ -55,6 +57,7 @@ MIDDLEWARE = [
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     'corsheaders.middleware.CorsMiddleware',
     'django.middleware.common.CommonMiddleware',
+    'simple_history.middleware.HistoryRequestMiddleware',
 ]
 
 ROOT_URLCONF = 'ImageServer.urls'
