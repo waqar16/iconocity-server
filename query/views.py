@@ -1,17 +1,18 @@
-from django.shortcuts import render
 from rest_framework import status
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.views import APIView
 from rest_framework.response import Response
-import requests
 from app.models import Project
-from app.serializers import ProjectIconAttributesSerializer, ProjectSerializer, ProjectWithHistorySerializer, \
-    ProjectUpdateSerializer
+from app.serializers import ProjectIconAttributesSerializer
+from auth_app.token_auth import CustomTokenAuthentication
 from query.utils import ChangeIconQueryBot
-from app.utils import custom_error_message, fetch_icons
-from rest_framework.viewsets import ModelViewSet
-# Create your views here.
+from app.utils import fetch_icons
 
-class UpdateIconAttribuesByQuery(APIView):
+
+class UpdateIconAttributesByQuery(APIView):
+    authentication_classes = [CustomTokenAuthentication]
+    permission_classes = [IsAuthenticated]
+
     def post(self, request):
         project_id = request.data['project_id']
         query = request.data['query']
@@ -21,10 +22,10 @@ class UpdateIconAttribuesByQuery(APIView):
 
 
         try:
-            project_instance = Project.objects.get(id=project_id)
+            project_instance = Project.objects.get(id=project_id, user=request.user)
             serializer = ProjectIconAttributesSerializer(project_instance)
             project_attributes = serializer.data["attributes"]
-            print("before attribues-->", project_attributes)
+            print("before attributes-->", project_attributes)
             response = ChangeIconQueryBot(query, project_attributes, language)
             if not response.isRelated:
                 return Response(response.response, status=status.HTTP_200_OK)
@@ -39,26 +40,16 @@ class UpdateIconAttribuesByQuery(APIView):
                 'line_thickness': response.line_thickness if response.line_thickness else project_attributes["line_thickness"],
                 'corner_rounding': response.corner_rounding if response.corner_rounding else project_attributes["corner_rounding"],
             }
-            print("after update->", attributes)
 
-            f_icons_list = fetch_icons(False, False, attributes["color_palette"],
+            f_icons_list, result = fetch_icons(False, False, attributes["color_palette"],
                                        attributes["iconography"], attributes["brand_style"] , attributes["gradient_usage"],
                                        attributes["imagery"], attributes["shadow_and_depth"], attributes["line_thickness"], attributes["corner_rounding"])
 
-            project_data = {
-                'attributes': attributes,
-                'f_icons': f_icons_list,
-            }
             project_instance.f_icons = f_icons_list
             project_instance.attributes = attributes
             project_instance.save_with_historical_record()
 
-            # # project_serializer_obj = ProjectUpdateSerializer(project_instance, data=project_data, partial=True)
-            # # if project_serializer_obj.is_valid(raise_exception=True):
-            # #     project_serializer_obj.save()
-            #     print("saved", project_serializer_obj.data["attributes"])
             return Response(response.response, status=status.HTTP_200_OK)
-            # return Response(custom_error_message(project_serializer_obj.errors), status=status.HTTP_400_BAD_REQUEST)
         except Project.DoesNotExist:
             return Response({'error': "Project Does Not Exist"}, status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:

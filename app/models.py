@@ -1,13 +1,16 @@
+from django.contrib.auth import get_user_model
 from django.db import models
 import uuid
 from simple_history.models import HistoricalRecords
-# Create your models here.
+
 
 class TimeStampedModel(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+
     class Meta:
         abstract = True
+
 
 class Project(TimeStampedModel):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
@@ -16,6 +19,7 @@ class Project(TimeStampedModel):
     f_icons = models.JSONField(default=list, blank=True)
     screen_link =models.URLField(blank=True)
     history = HistoricalRecords()
+    user = models.ForeignKey(get_user_model(), on_delete=models.CASCADE, null=True, blank=True)
 
     def save(self, *args, **kwargs):
         print("without history")

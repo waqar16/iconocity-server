@@ -3,6 +3,10 @@ import io
 
 from langchain_openai import ChatOpenAI
 import zipfile
+
+from rest_framework.permissions import IsAuthenticated
+from sqlalchemy.testing.suite.test_reflection import users
+
 from app.utils import process_image_data, custom_error_message, Color_Available_in_Filter, fetch_icons, format_value
 from app.serializers import ProjectSerializer, ProjectListSerializer, ProjectIconListSerializer, ProjectHistorySerializer
 import re
@@ -13,6 +17,7 @@ from rest_framework.response import Response
 from rest_framework import status
 from django.conf import settings
 from app.models import Project
+from auth_app.token_auth import CustomTokenAuthentication
 
 OPENAI_API_KEY = settings.OPENAI_API_KEY
 ICON_FINDER_KEY = settings.ICON_FINDER_KEY
@@ -23,6 +28,8 @@ import webcolors
 
 
 class ImageProcessView(APIView):
+    authentication_classes = [CustomTokenAuthentication]
+    permission_classes = [IsAuthenticated]
 
     def post(self, request, *args, **kwargs):
         try:
@@ -56,7 +63,7 @@ class ImageProcessView(APIView):
                     color_filter = False
 
             #fetch Icons from free pik Api
-            f_icons_list = fetch_icons(color_filter, style_filter, color_palette,
+            f_icons_list, result = fetch_icons(color_filter, style_filter, color_palette,
                                 iconography, brand_style, gradient_usage, imagery,
                                 shadow_and_depth, line_thickness, corner_rounding,
                                 icon_color_name, icon_style)
@@ -71,6 +78,7 @@ class ImageProcessView(APIView):
                 'shadow_and_depth': shadow_and_depth,
                 'line_thickness': line_thickness,
                 'corner_rounding': corner_rounding,
+                'query_by_llm': result
             }
             project_data = {
                 'attributes' : attributes,
@@ -79,7 +87,9 @@ class ImageProcessView(APIView):
 
             project_serializer_obj = ProjectSerializer(data=project_data)
             if project_serializer_obj.is_valid():
-                project_serializer_obj.save()
+                instance = project_serializer_obj.save()
+                instance.user = request.user
+                instance.save()
                 return Response(project_serializer_obj.data, status=status.HTTP_200_OK)
             return Response(custom_error_message(project_serializer_obj.errors), status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
@@ -88,6 +98,8 @@ class ImageProcessView(APIView):
 
 
 class ImageDownloadView(APIView):
+    authentication_classes = [CustomTokenAuthentication]
+    permission_classes = [IsAuthenticated]
 
     def get(self, request, *args, **kwargs):
         download_url = request.query_params.get('url')
@@ -110,12 +122,13 @@ class ImageDownloadView(APIView):
 
 
 class DownloadFreePikView(APIView):
+    authentication_classes = [CustomTokenAuthentication]
+    permission_classes = [IsAuthenticated]
 
     def get(self, request, *args, **kwargs):
         page_size = request.GET.get('page_size', '5')
         page = request.GET.get('page', '1')
         history_id = request.GET.get('history_id')
-        download_formate = request.GET.get('download_formate', 'png')
         if not page_size or not page or not history_id:
             return Response({"error": "No page size or page number provided"}, status=status.HTTP_400_BAD_REQUEST)
 
@@ -165,6 +178,8 @@ class DownloadFreePikView(APIView):
 
 
 class FigmaLinkProcessAPI(APIView):
+    authentication_classes = [CustomTokenAuthentication]
+    permission_classes = [IsAuthenticated]
 
     def post(self, request, *args, **kwargs):
         try:
@@ -238,7 +253,7 @@ class FigmaLinkProcessAPI(APIView):
                 except ValueError:
                     color_filter = False
 
-            f_icons_list = fetch_icons(color_filter, style_filter, color_palette,
+            f_icons_list, result = fetch_icons(color_filter, style_filter, color_palette,
                                        iconography, brand_style, gradient_usage, imagery,
                                        shadow_and_depth, line_thickness, corner_rounding,
                                        icon_color_name, icon_style)
@@ -253,6 +268,7 @@ class FigmaLinkProcessAPI(APIView):
                 'shadow_and_depth': shadow_and_depth,
                 'line_thickness': line_thickness,
                 'corner_rounding': corner_rounding,
+                'query_by_llm': result
             }
             project_data = {
                 'attributes' : attributes,
@@ -262,21 +278,27 @@ class FigmaLinkProcessAPI(APIView):
 
             project_serializer_obj = ProjectSerializer(data=project_data)
             if project_serializer_obj.is_valid():
-                project_serializer_obj.save()
-
+                instance = project_serializer_obj.save()
+                instance.user = request.user
+                instance.save()
             return Response(project_serializer_obj.data, status=status.HTTP_200_OK)
         except Exception as e:
             print(str(e))
             return Response({"error": "Internal Server Error"}, status=status.HTTP_400_BAD_REQUEST)
 
 class GetProjectListApi(APIView):
+    authentication_classes = [CustomTokenAuthentication]
+    permission_classes = [IsAuthenticated]
+
     def get(self, request, *args, **kwargs):
-        project_list = Project.objects.all().order_by('-created_at')
+        project_list = Project.objects.filter(user=request.user).all().order_by('-created_at')
         serializer = ProjectListSerializer(project_list, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
 
 class GetProjectIconListApi(APIView):
+    authentication_classes = [CustomTokenAuthentication]
+    permission_classes = [IsAuthenticated]
 
     def post(self, request, *args, **kwargs):
         try:
@@ -286,7 +308,11 @@ class GetProjectIconListApi(APIView):
 
             if not project_id:
                 return Response({"error": "Project ID is required"}, status=status.HTTP_400_BAD_REQUEST)
-            project_list = Project.objects.get(id=project_id)
+            try:
+                project_list = Project.objects.get(id=project_id, user=request.user)
+            except Project.DoesNotExist:
+                return Response({"error": "Project does not exist"}, status=status.HTTP_400_BAD_REQUEST)
+
             serializer = ProjectIconListSerializer(project_list)
 
             f_icons = serializer.data["f_icons"]
@@ -303,35 +329,39 @@ class GetProjectIconListApi(APIView):
             }
 
             return Response(response_data, status=status.HTTP_200_OK)
-        except Project.DoesNotExist:
-            return Response({"error": "Project does not exist"}, status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
             return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 class ChangeProjectName(APIView):
+    authentication_classes = [CustomTokenAuthentication]
+    permission_classes = [IsAuthenticated]
+
     def post(self, request, *args, **kwargs):
         try:
             project_id = request.data.get('project_id')
             if not project_id:
                 return Response({"error": "Please Provide Project Id"}, status.HTTP_400_BAD_REQUEST)
-            project_obj = Project.objects.get(id=project_id)
+            project_obj = Project.objects.get(id=project_id, user=request.user)
             project_new_name = request.data.get('new_name', project_obj.name)
             project_obj.name = project_new_name
             project_obj.save()
-            return Response({"data": "Project Renamed Succssfully"}, status=status.HTTP_200_OK)
+            return Response({"data": "Project Renamed Successfully"}, status=status.HTTP_200_OK)
         except Project.DoesNotExist:
             return Response({"error": "Project does not exist"}, status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
             return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 class GetProjectHistoryListApi(APIView):
+    authentication_classes = [CustomTokenAuthentication]
+    permission_classes = [IsAuthenticated]
+
     def post(self, request, *args, **kwargs):
         try:
             project_id = request.data.get('project_id')
             if not project_id:
                 return Response({"error": "Please Provide Project Id"}, status.HTTP_400_BAD_REQUEST)
-            project_obj = Project.objects.get(pk=project_id)
+            project_obj = Project.objects.get(pk=project_id, user=request.user)
         except Project.DoesNotExist:
             return Response({"detail": "Project Does Not Exist"}, status=status.HTTP_404_NOT_FOUND)
 
@@ -340,6 +370,9 @@ class GetProjectHistoryListApi(APIView):
         return Response(serializer.data, status=status.HTTP_200_OK)
 
 class GetHistoryByHistoryIdApi(APIView):
+    authentication_classes = [CustomTokenAuthentication]
+    permission_classes = [IsAuthenticated]
+
     def post(self, request, *args, **kwargs):
         history_id = request.data.get('history_id')
         page = request.data.get('page')

@@ -1,8 +1,6 @@
 from django.urls import path
-from query.views import (
-    UpdateIconAttribuesByQuery,
-)
+from query.views import *
 
 urlpatterns = [
-    path('UpdateIconsByQuery/', UpdateIconAttribuesByQuery.as_view(), name='UpdateIconsByQuery'),
+    path('UpdateIconsByQuery/', UpdateIconAttributesByQuery.as_view(), name='UpdateIconsByQuery'),
 ]

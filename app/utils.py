@@ -1,9 +1,13 @@
+from lib2to3.fixes.fix_input import context
+
+from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.pydantic_v1 import BaseModel, Field
 from langchain.chains import TransformChain
 from langchain_core.messages import HumanMessage
 from langchain_openai import ChatOpenAI
 from langchain_core.runnables import chain
 from langchain_core.output_parsers import JsonOutputParser
+from django.conf import settings
 import requests
 
 class ImageInformation(BaseModel):
@@ -144,6 +148,46 @@ def Color_Available_in_Filter(color):
     return False, color
 
 
+def process_icons_query(inputs: str):
+
+    prompt = """
+    Create a brief query string incorporating the following given string. Consider the below examples output.
+    
+    Examples Output:
+        1.  The design features a corporate technology theme with a dominant black color. It incorporates flat, modern
+            icons and illustrative imagery of innovation, including a brain symbol. Linear gradients and drop shadows
+            create an elevated, clean look, with thin lines and slightly rounded corners adding to the professional
+            aesthetic.
+            
+        2. The design embraces a minimalist, nature-inspired theme with a dominant earthy green color palette. It uses
+           hand-drawn, organic icons and photographic imagery of landscapes, trees, and sustainability. Soft shadows and
+           subtle textures provide depth, while rounded edges and natural elements create a welcoming and eco-friendly
+           aesthetic. The overall feel is calm and harmonious, aimed at conveying environmental awareness and simplicity.
+           
+        3. This design is driven by a futuristic, tech-heavy theme, featuring a vibrant neon blue and metallic silver
+           color scheme. It incorporates 3D icons and dynamic, animated graphics such as data streams and digital grids.
+           Bold typography, sharp geometric shapes, and high-contrast backgrounds give the design an energetic,
+           cutting-edge look, evoking innovation and speed. The interface uses glass morphism effects with transparent
+           layers and glowing edges to emphasize the modern, forward-thinking aesthetic.
+           
+    Here is the:\n\n {context}\n\n
+    """
+
+    model = ChatOpenAI(temperature=0.5, model="gpt-4-vision-preview", max_tokens=1024)
+    class ResponseSchema(BaseModel):
+        query: str = Field(..., description="query with brief string")
+
+    question_prompt = ChatPromptTemplate.from_messages(
+        [
+            ("system", prompt)
+        ]
+    )
+    llm_with_tools = model.with_structured_output(schema=ResponseSchema)
+    query_chain = question_prompt | llm_with_tools
+    results = query_chain.invoke({'context': inputs})
+    return results.query
+
+
 # Function to fetch icons based on filters
 def fetch_icons(color_filter, style_filter, color_palette, iconography, brand_style,
                 gradient_usage, imagery, shadow_and_depth, line_thickness, corner_rounding,
@@ -152,28 +196,24 @@ def fetch_icons(color_filter, style_filter, color_palette, iconography, brand_st
     is_above_100_icons = False
     base_url = "https://api.freepik.com/v1/icons"
     headers = {
-        "x-freepik-api-key": "FPSX19dd1bf8e6534123a705ed38678cb8d1"
+        "x-freepik-api-key": settings.FREE_PICK_API_KEY
     }
 
-    # Create the query string based on filters
+    result = process_icons_query(f"{color_palette} {iconography} {brand_style} {gradient_usage} {imagery} {shadow_and_depth} {line_thickness} {corner_rounding}")
+
     if color_filter and style_filter:
-        f_query = f"{color_palette} {iconography} {brand_style} {gradient_usage} {imagery} {shadow_and_depth} {line_thickness} {corner_rounding}"
-        querystring = {"term": f_query, "thumbnail_size": "256", "per_page": "100", "page": "1",
+        querystring = {"term": result, "thumbnail_size": "256", "per_page": "100", "page": "1",
                        "filters[color]": icon_color_name, "filters[shape]": icon_style}
     elif color_filter:
-        f_query = f"{color_palette} {iconography} {brand_style} {gradient_usage} {imagery} {shadow_and_depth} {line_thickness} {corner_rounding}"
-        querystring = {"term": f_query, "thumbnail_size": "256", "per_page": "100", "page": "1",
+        querystring = {"term": result, "thumbnail_size": "256", "per_page": "100", "page": "1",
                        "filters[color]": icon_color_name}
     elif style_filter:
-        f_query = f"{color_palette} {iconography} {brand_style} {gradient_usage} {imagery} {shadow_and_depth} {line_thickness} {corner_rounding}"
-        querystring = {"term": f_query, "thumbnail_size": "256", "per_page": "100", "page": "1",
+        querystring = {"term": result, "thumbnail_size": "256", "per_page": "100", "page": "1",
                        "filters[shape]": icon_style}
     elif icon_color_name and icon_style:
-        f_query = f"{icon_color_name} {icon_style} {brand_style} {gradient_usage} {imagery} {shadow_and_depth} {line_thickness} {corner_rounding}"
-        querystring = {"term": f_query, "thumbnail_size": "256", "per_page": "100", "page": "1"}
+        querystring = {"term": result, "thumbnail_size": "256", "per_page": "100", "page": "1"}
     else:
-        f_query = f"{color_palette} {iconography} {brand_style} {gradient_usage} {imagery} {shadow_and_depth} {line_thickness} {corner_rounding}"
-        querystring = {"term": f_query, "thumbnail_size": "256", "per_page": "100", "page": "1"}
+        querystring = {"term": result, "thumbnail_size": "256", "per_page": "100", "page": "1"}
 
     querystring['order'] = 'relevance'
 
@@ -208,9 +248,7 @@ def fetch_icons(color_filter, style_filter, color_palette, iconography, brand_st
                     'id': icon.get('id'),
                     'url': icon['thumbnails'][0].get('url')
                 })
-    print(len(f_icons_list))
-
-    return f_icons_list
+    return f_icons_list, result
 
 def format_value(value):
     if value is None:

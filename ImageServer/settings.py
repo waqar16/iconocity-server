@@ -26,10 +26,12 @@ SECRET_KEY = 'django-insecure-28=6-9n+qro4a7&n3bgoq9v#qgeb@r2k6@k1qqztz4bz4r&c^4
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
+# ALLOWED_HOSTS = ['192.168.1.34', '192.168.1.20', '39.56.21.59', 'localhost', '*']
 ALLOWED_HOSTS = ["*"]
 OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
 ICON_FINDER_KEY = os.getenv('ICON_FINDER_KEY')
 FIGMA_API_KEY = os.getenv('FIGMA_API_KEY')
+FREE_PICK_API_KEY = os.getenv('FREE_PICK_API_KEY')
 
 # Application definition
 
@@ -41,8 +43,10 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'rest_framework',
+    'rest_framework.authtoken',
     'corsheaders',
     'app',
+    'auth_app',
     'query',
     'simple_history',
 ]
@@ -61,7 +65,7 @@ MIDDLEWARE = [
 ]
 
 ROOT_URLCONF = 'ImageServer.urls'
-
+AUTH_USER_MODEL = 'auth_app.User'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',

@@ -11,3 +11,4 @@ app/migrations
 
 query/__pycache__/
 query/migrations/__pycache__/
+auth_app/migrations
