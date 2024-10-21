@@ -1,14 +1,14 @@
-from lib2to3.fixes.fix_input import context
-
-from langchain_core.prompts import ChatPromptTemplate
+from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_core.pydantic_v1 import BaseModel, Field
 from langchain.chains import TransformChain
 from langchain_core.messages import HumanMessage
 from langchain_openai import ChatOpenAI
 from langchain_core.runnables import chain
-from langchain_core.output_parsers import JsonOutputParser
+from langchain_core.output_parsers import JsonOutputParser, StrOutputParser
 from django.conf import settings
 import requests
+
+model = ChatOpenAI(temperature=0.5, model="gpt-4o-mini", max_tokens=1024)
 
 class ImageInformation(BaseModel):
     color_palette: str = Field(description="The primary color palette from the picture")
@@ -92,8 +92,6 @@ def process_image_data(image_base64: str):
     # chain decorator to make it runnable
     @chain
     def image_model(inputs: dict):
-        model = ChatOpenAI(
-            temperature=0.5, model="gpt-4-vision-preview", max_tokens=1024)
         msg = model.invoke(
             [HumanMessage(
                 content=[
@@ -142,11 +140,47 @@ def Color_Available_in_Filter(color):
         'yellow',
     ]
     if color in Valid_Filter_list_FREEPIK:
-        print("filter colrr--> True- ", color)
         return True, color
-    print("filter colrr--> True- ", color)
     return False, color
 
+def process_available_color_for_filter(color: str):
+    class ResponseStructure(BaseModel):
+        color: str = Field(default="", description="Color name detected from input")
+        is_available: bool = Field(default=False, description="Whether or not the color is available")
+    template = """
+        You are an AI assistant tasked with identifying the closest match from a list of available colors.
+    Available Colors:
+        Blue
+        Black
+        Cyan
+        Chartreuse
+        Azure
+        Gray
+        Green
+        Orange
+        Red
+        Rose
+        Spring-Green
+        Violet
+        White
+        Yellow
+        
+        Instructions:
+          If the color provided does not match any of the available colors, return the original color given as input.
+          If the given input color matches one of the available colors, return True and the color; otherwise,
+          return False and the original color.
+    """
+    prompt = ChatPromptTemplate.from_messages(
+        [
+            ("system", template),
+            MessagesPlaceholder("history", optional=True), ("human", "{question}")
+        ]
+    )
+
+    partial_prompt = prompt.partial(language='English', query=color)
+    chain = partial_prompt | model | ResponseStructure
+    response = chain.invoke({"history": [], "question": color})
+    return response
 
 def process_icons_query(inputs: str):
 
@@ -198,22 +232,21 @@ def fetch_icons(color_filter, style_filter, color_palette, iconography, brand_st
     headers = {
         "x-freepik-api-key": settings.FREE_PICK_API_KEY
     }
-
+    # attributes with values
     result = process_icons_query(f"{color_palette} {iconography} {brand_style} {gradient_usage} {imagery} {shadow_and_depth} {line_thickness} {corner_rounding}")
 
     if color_filter and style_filter:
         querystring = {"term": result, "thumbnail_size": "256", "per_page": "100", "page": "1",
-                       "filters[color]": icon_color_name, "filters[shape]": icon_style}
+                       "filters[color]": icon_color_name.lower(), "filters[shape]": icon_style}
     elif color_filter:
         querystring = {"term": result, "thumbnail_size": "256", "per_page": "100", "page": "1",
-                       "filters[color]": icon_color_name}
+                       "filters[color]": icon_color_name.lower()}
     elif style_filter:
         querystring = {"term": result, "thumbnail_size": "256", "per_page": "100", "page": "1",
-                       "filters[shape]": icon_style}
-    elif icon_color_name and icon_style:
-        querystring = {"term": result, "thumbnail_size": "256", "per_page": "100", "page": "1"}
+                       "filters[shape]": icon_style, "filters[color]": color_palette}
     else:
-        querystring = {"term": result, "thumbnail_size": "256", "per_page": "100", "page": "1"}
+        querystring = {"term": result, "thumbnail_size": "256", "per_page": "100", "page": "1",
+                       "filters[color]": color_palette}
 
     querystring['order'] = 'relevance'
 

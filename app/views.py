@@ -5,9 +5,9 @@ from langchain_openai import ChatOpenAI
 import zipfile
 
 from rest_framework.permissions import IsAuthenticated
-from sqlalchemy.testing.suite.test_reflection import users
 
-from app.utils import process_image_data, custom_error_message, Color_Available_in_Filter, fetch_icons, format_value
+from app.utils import process_image_data, custom_error_message, Color_Available_in_Filter, fetch_icons, format_value, \
+    process_available_color_for_filter
 from app.serializers import ProjectSerializer, ProjectListSerializer, ProjectIconListSerializer, ProjectHistorySerializer
 import re
 import requests
@@ -52,7 +52,7 @@ class ImageProcessView(APIView):
             shadow_and_depth = format_value(result.get("shadow_and_depth", ""))
             line_thickness = format_value(result.get("line_thickness", ""))
             corner_rounding = format_value(result.get("corner_rounding", ""))
-
+            final_response_by_llm = (False, )
             #Extract Color from Hex Code
             if icon_color_hex:
                 try:
@@ -61,6 +61,12 @@ class ImageProcessView(APIView):
                     color_filter, icon_color_name = Color_Available_in_Filter(color_name)
                 except ValueError:
                     color_filter = False
+            else:
+                final_response_by_llm = process_available_color_for_filter(color_palette)
+            if final_response_by_llm[0]:
+                color_palette = final_response_by_llm[1]
+            else:
+                color_palette = color_palette
 
             #fetch Icons from free pik Api
             f_icons_list, result = fetch_icons(color_filter, style_filter, color_palette,
