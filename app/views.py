@@ -64,9 +64,9 @@ class ImageProcessView(APIView):
             else:
                 final_response_by_llm = process_available_color_for_filter(color_palette)
             if final_response_by_llm[0]:
-                color_palette = final_response_by_llm[1]
+                color_filter, icon_color_name = final_response_by_llm
             else:
-                color_palette = color_palette
+                color_filter = False
 
             #fetch Icons from free pik Api
             f_icons_list, result = fetch_icons(color_filter, style_filter, color_palette,
