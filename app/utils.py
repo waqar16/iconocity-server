@@ -170,6 +170,7 @@ def process_available_color_for_filter(color: str):
           If the given input color matches one of the available colors, return True and the color; otherwise,
           return False and the original color.
     """
+    structured_llm = model.with_structured_output(ResponseStructure)
     prompt = ChatPromptTemplate.from_messages(
         [
             ("system", template),
@@ -178,9 +179,9 @@ def process_available_color_for_filter(color: str):
     )
 
     partial_prompt = prompt.partial(language='English', query=color)
-    chain = partial_prompt | model | ResponseStructure
-    response = chain.invoke({"history": [], "question": color})
-    return response
+    chain = partial_prompt | structured_llm
+    response = chain.invoke({"question": color})
+    return response.is_available, response.color
 
 def process_icons_query(inputs: str):
 
