@@ -23,11 +23,14 @@ class UpdateIconAttributesByQuery(APIView):
         try:
             icon_style = None
             icon_color_name = None
-            project_instance = Project.objects.get(id=project_id, user=request.user)
+            project_instance = Project.objects.last()
             serializer = ProjectIconAttributesSerializer(project_instance)
             project_attributes = serializer.data["attributes"]
             print("before attributes-->", project_attributes)
             response = changeIconColorAndShapeQueryBot(query)
+
+            if not response.isRelatedColor and not response.isRelatedShape:
+                return Response(response.general_response, status.HTTP_200_OK)
 
             attributes = {
                 'color_palette': response.color_palette if format_value(response.color_palette) else project_attributes["color_palette"],
@@ -44,16 +47,20 @@ class UpdateIconAttributesByQuery(APIView):
                 icon_color_name = response.color
             if response.isRelatedShape:
                 icon_style = response.shape
-            f_icons_list, result = fetch_icons(response.isRelatedColor, response.isRelatedShape, attributes["color_palette"],
+
+            f_icons_list, result, error = fetch_icons(response.isRelatedColor, response.isRelatedShape, attributes["color_palette"],
                                        attributes["iconography"], attributes["brand_style"] , attributes["gradient_usage"],
                                        attributes["imagery"], attributes["shadow_and_depth"], attributes["line_thickness"],
                                                attributes["corner_rounding"], icon_color_name, icon_style)
+            if error:
+                return Response({"error": error}, status=status.HTTP_400_BAD_REQUEST)
+
             if f_icons_list:
                 project_instance.f_icons = f_icons_list
             if attributes:
                 project_instance.attributes = attributes
             project_instance.save_with_historical_record()
-            return Response('update successfully.', status=status.HTTP_200_OK)
+            return Response(response.general_response, status=status.HTTP_200_OK)
         except Project.DoesNotExist:
             return Response({'error': "Project Does Not Exist"}, status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:

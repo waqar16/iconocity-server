@@ -1,3 +1,5 @@
+from enum import Enum
+
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_core.pydantic_v1 import BaseModel, Field
 from langchain.chains import TransformChain
@@ -143,33 +145,36 @@ def Color_Available_in_Filter(color):
         return True, color
     return False, color
 
+class AvailableColors(str, Enum):
+    blue = "Blue"
+    black = "Black"
+    cyan = "Cyan"
+    chartreuse = "Chartreuse"
+    azure = "Azure"
+    gray = "Gray"
+    green = "Green"
+    orange = "Orange"
+    red = "Red"
+    rose = "Rose"
+    spring_green = "Spring-Green"
+    violet = "Violet"
+    white = "White"
+    yellow = "Yellow"
+
 def process_available_color_for_filter(color: str):
     class ResponseStructure(BaseModel):
         color: str = Field(default="", description="Color name detected from input")
         is_available: bool = Field(default=False, description="Whether or not the color is available")
+
     template = """
         You are an AI assistant tasked with identifying the closest match from a list of available colors.
-    Available Colors:
-        Blue
-        Black
-        Cyan
-        Chartreuse
-        Azure
-        Gray
-        Green
-        Orange
-        Red
-        Rose
-        Spring-Green
-        Violet
-        White
-        Yellow
-        
+
         Instructions:
-          If the color provided does not match any of the available colors, return the original color given as input.
-          If the given input color matches one of the available colors, return True and the color; otherwise,
-          return False and the original color.
-    """
+          1. If the color provided matches exactly with one of the available colors, return True and the color.
+          2. If the color does not match exactly but is close in name or shade to one of the available colors, return True and the closest matching color.
+          3. If no close match is found, return False and the original color given as input.
+    """.format(colors="\n".join([color.value for color in AvailableColors]))
+
     structured_llm = model.with_structured_output(ResponseStructure)
     prompt = ChatPromptTemplate.from_messages(
         [
@@ -254,35 +259,38 @@ def fetch_icons(color_filter, style_filter, color_palette, iconography, brand_st
     # Fetch the first batch of 100 icons
     response = requests.get(base_url, headers=headers, params=querystring)
     json_data = response.json()
-    try:
-        meta = json_data.get("meta")
-        total = meta["pagination"]["total"]
-        if total > 100:
-            is_above_100_icons = True
-    except:
-        is_above_100_icons = False
+    if response.status_code == 200:
+        try:
+            meta = json_data.get("meta")
+            total = meta["pagination"]["total"]
+            if total > 100:
+                is_above_100_icons = True
+        except:
+            is_above_100_icons = False
 
-    # Extract Freepik icon data
-    for icon in json_data.get('data', []):
-        if icon.get('thumbnails'):
-            f_icons_list.append({
-                'id': icon.get('id'),
-                'url': icon['thumbnails'][0].get('url')
-            })
-
-    if is_above_100_icons:
-        querystring['page'] = '2'
-        querystring['per_page'] = '50'
-        response = requests.get(base_url, headers=headers, params=querystring)
-        json_data = response.json()
-
+        # Extract Freepik icon data
         for icon in json_data.get('data', []):
             if icon.get('thumbnails'):
                 f_icons_list.append({
                     'id': icon.get('id'),
                     'url': icon['thumbnails'][0].get('url')
                 })
-    return f_icons_list, result
+
+        if is_above_100_icons:
+            querystring['page'] = '2'
+            querystring['per_page'] = '50'
+            response = requests.get(base_url, headers=headers, params=querystring)
+            json_data = response.json()
+
+            for icon in json_data.get('data', []):
+                if icon.get('thumbnails'):
+                    f_icons_list.append({
+                        'id': icon.get('id'),
+                        'url': icon['thumbnails'][0].get('url')
+                    })
+        return f_icons_list, result, None
+    else:
+        return f_icons_list, result, json_data['invalid_params'][0]['reason']
 
 def format_value(value):
     if value is None:

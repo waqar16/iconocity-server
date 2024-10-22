@@ -59,7 +59,7 @@ class ImageProcessView(APIView):
                 try:
                     color_name = webcolors.hex_to_name(icon_color_hex)
                     print(color_name)
-                    color_filter, icon_color_name = Color_Available_in_Filter(color_name)
+                    color_filter, icon_color_name = process_available_color_for_filter(color_name)
                 except ValueError:
                     color_filter = False
             else:
@@ -67,13 +67,15 @@ class ImageProcessView(APIView):
                 if final_response_by_llm[0]:
                     color_filter, icon_color_name = final_response_by_llm
                 else:
-                    color_filter = False
+                    color_filter, icon_color_name = True, final_response_by_llm[1]
 
             #fetch Icons from free pik Api
-            f_icons_list, result = fetch_icons(color_filter, style_filter, color_palette,
+            f_icons_list, result, error = fetch_icons(color_filter, style_filter, color_palette,
                                 iconography, brand_style, gradient_usage, imagery,
                                 shadow_and_depth, line_thickness, corner_rounding,
                                 icon_color_name, icon_style)
+            if error:
+                    return Response({"error": error}, status=status.HTTP_400_BAD_REQUEST)
 
             #Save data in Project Modal
             attributes = {
@@ -260,10 +262,12 @@ class FigmaLinkProcessAPI(APIView):
                 except ValueError:
                     color_filter = False
 
-            f_icons_list, result = fetch_icons(color_filter, style_filter, color_palette,
+            f_icons_list, result, error = fetch_icons(color_filter, style_filter, color_palette,
                                        iconography, brand_style, gradient_usage, imagery,
                                        shadow_and_depth, line_thickness, corner_rounding,
                                        icon_color_name, icon_style)
+            if error:
+                    return Response({"error": error}, status=status.HTTP_400_BAD_REQUEST)
 
             #Save data in Project Modal
             attributes = {
