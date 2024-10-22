@@ -52,8 +52,7 @@ class UpdateIconAttributesByQuery(APIView):
             project_instance.f_icons = f_icons_list
             project_instance.attributes = attributes
             project_instance.save_with_historical_record()
-            serializer_response = ProjectSerializer(project_instance)
-            return Response(serializer_response.data, status=status.HTTP_200_OK)
+            return Response('update successfully.', status=status.HTTP_200_OK)
         except Project.DoesNotExist:
             return Response({'error': "Project Does Not Exist"}, status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
