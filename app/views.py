@@ -33,6 +33,7 @@ class ImageProcessView(APIView):
 
     def post(self, request, *args, **kwargs):
         try:
+            final_response_by_llm = None
             image_file = request.FILES.get('image')
             icon_color_hex, icon_color_name = request.data.get('icon_color'), None
             icon_style = request.data.get('icon_style')
@@ -52,7 +53,7 @@ class ImageProcessView(APIView):
             shadow_and_depth = format_value(result.get("shadow_and_depth", ""))
             line_thickness = format_value(result.get("line_thickness", ""))
             corner_rounding = format_value(result.get("corner_rounding", ""))
-            final_response_by_llm = (False, )
+
             #Extract Color from Hex Code
             if icon_color_hex:
                 try:
@@ -63,10 +64,10 @@ class ImageProcessView(APIView):
                     color_filter = False
             else:
                 final_response_by_llm = process_available_color_for_filter(color_palette)
-            if final_response_by_llm[0]:
-                color_filter, icon_color_name = final_response_by_llm
-            else:
-                color_filter = False
+                if final_response_by_llm[0]:
+                    color_filter, icon_color_name = final_response_by_llm
+                else:
+                    color_filter = False
 
             #fetch Icons from free pik Api
             f_icons_list, result = fetch_icons(color_filter, style_filter, color_palette,

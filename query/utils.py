@@ -169,7 +169,9 @@ def changeIconColorAndShapeQueryBot(query):
          `isRelatedShape`, `isRelatedColor` to True.
         When the match is not exact, return the closest color and shape, and set `isRelatedColor` and `isRelatedShape`
         to False.
-        If no color and shape if found then set answer in `general_response`.
+
+        Remember: You are an AI assistant, Resolve input query and set the answer accordingly in `general_response`.
+        Make sure `general_response` should not be empty.
         
         For each of the above guideline attributes, populate the results as a single keyword representing the attribute 
         detected. Avoid using non-descriptive answers like "Yes" or "No"; instead, specify relevant details or use 

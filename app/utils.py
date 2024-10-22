@@ -244,10 +244,10 @@ def fetch_icons(color_filter, style_filter, color_palette, iconography, brand_st
                        "filters[color]": icon_color_name.lower()}
     elif style_filter:
         querystring = {"term": result, "thumbnail_size": "256", "per_page": "100", "page": "1",
-                       "filters[shape]": icon_style, "filters[color]": color_palette}
+                       "filters[shape]": icon_style, "filters[color]": color_palette.lower()}
     else:
         querystring = {"term": result, "thumbnail_size": "256", "per_page": "100", "page": "1",
-                       "filters[color]": color_palette}
+                       "filters[color]": color_palette.lower()}
 
     querystring['order'] = 'relevance'
 
