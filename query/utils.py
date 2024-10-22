@@ -170,8 +170,10 @@ def changeIconColorAndShapeQueryBot(query):
         When the match is not exact, return the closest color and shape, and set `isRelatedColor` and `isRelatedShape`
         to False.
 
-        Remember: You are an AI assistant, Resolve input query and set the answer accordingly in `general_response`.
-        Make sure `general_response` should not be empty.
+        You should respond to queries such as changing the icon's color (e.g., red, green, or any other color) or 
+        modifying the icon's shape. Your response should confirm both the color and shape adjustments and set the
+        response in `general_response`. For example: 'Icon color applied and shape updated.' If the query is not 
+        related to color and shape, respond with: 'I’m here to assist you with the color and shape of the icons.
         
         For each of the above guideline attributes, populate the results as a single keyword representing the attribute 
         detected. Avoid using non-descriptive answers like "Yes" or "No"; instead, specify relevant details or use 
