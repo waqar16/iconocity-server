@@ -48,9 +48,10 @@ class UpdateIconAttributesByQuery(APIView):
                                        attributes["iconography"], attributes["brand_style"] , attributes["gradient_usage"],
                                        attributes["imagery"], attributes["shadow_and_depth"], attributes["line_thickness"],
                                                attributes["corner_rounding"], icon_color_name, icon_style)
-
-            project_instance.f_icons = f_icons_list
-            project_instance.attributes = attributes
+            if f_icons_list:
+                project_instance.f_icons = f_icons_list
+            if attributes:
+                project_instance.attributes = attributes
             project_instance.save_with_historical_record()
             return Response('update successfully.', status=status.HTTP_200_OK)
         except Project.DoesNotExist:
