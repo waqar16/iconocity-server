@@ -1,4 +1,6 @@
 import os
+from typing import Literal
+
 from langchain_core.pydantic_v1 import BaseModel, Field
 from langchain_openai import ChatOpenAI
 from django.conf import settings
@@ -91,73 +93,24 @@ def changeIconColorAndShapeQueryBot(query):
         isRelatedColor: bool = Field(default=False, description="if query is related to available color return True, else return False")
         isRelatedShape: bool = Field(default=False, description="if query is related to available shape return True, else return False")
         general_response: str = Field(default=None, description="General response of the input query")
-        
-        color_palette: str = Field(default=None, description="The iconography of the picture")
-        iconography: str = Field(default=None, description="The iconography of the picture")
-        brand_style: str = Field(default=None, description="The band style of the picture")
-        gradient_usage: str = Field(default=None, description="The gradient usage of the picture")
-        imagery: str = Field(default=None, description="The imagery of the picture")
-        shadow_and_depth: str = Field(default=None, description="The shadow and depth of the picture")
-        line_thickness: str = Field(default=None, description="The line thickness of the picture")
-        corner_rounding: str = Field(default=None, description="The corner rounding of the picture")
 
 
     structured_llm = llm.with_structured_output(Output_Structure)
-    sys_prompt = """
-        You are an AI assistant designed to identify colors and shapes from an input query. You will use the predefined 
-        lists of colors and shapes provided below. If the input query does not exactly match any of the available options,
-        you must determine and return the closest possible match from the lists.
+    sys_prompt = """You are interacting with an AI that helps you change the design of an icon. Below are the current \
+        design settings of the icon. You can adjust them by giving simple instructions, like "make the icon color blue" \
+        or "make the icon bigger."
 
-        Note: If the input query does not match any color or shape, or if the query is unrelated to the color or shape of the icon, 
-        respond by setting `general_response` with a helpful message offering assistance with customizing the icon's color 
-        and shape. Let the user know you're here to help with customizing the icon's color and shape.
-
-        Guidelines:
-            You can change any of the following icon design settings:
-                •   Color Palette (e.g., color, or contrast level).
-                •   Iconography (e.g., flat, outlined, filled; also change the size and shape of the icon).
-                •   Brand Style (e.g., corporate, casual, modern, playful).
-                •   Imagery (e.g., style and theme of any images or graphics).
-                •   Gradient Usage (e.g., add or remove gradient effects).
-                •   Shadow and Depth (e.g., adjust shadow effects to make the icon look flat or elevated).
-                •   Line Thickness (e.g., make lines thicker, thinner, or variable).
-                •   Corner Rounding (e.g., make the icon’s corners sharper or more rounded).
-
-            Output:
-                • Color Palette: Blue, High Contrast
-                • Iconography: Flat, Medium, Rounded
-                • Brand Style: Corporate
-                • Imagery: Illustrative, Technology
-                • Gradient Usage: Linear, Blue-Yellow
-                • Shadow and Depth: Drop shadows, Elevated
-                • Line Thickness: Thin
-                • Corner Rounding: Slightly rounded
-
-        Available Colors:
-            •  Blue
-            •  Black
-            •  Cyan
-            •  Chartreuse
-            •  Azure
-            •  Gray
-            •  Green
-            •  Orange
-            •  Red
-            •  Rose
-            •  Spring-Green
-            •  Violet
-            •  White
-            •  Yellow
-
-        Available Shapes:
-            •  Outline
-            •  Fill
-            •  Linear Shape
-            •  Hand Drawn
-
-        Output Requirements:
-            Detected Color: Return the closest color from the available list.
-            Detected Shape: Return the closest shape from the available list.
+        Output:
+        • For each of the above attributes, populate the results as a single keyword representing the attribute detected. \
+        Avoid using non-descriptive answers like "Yes" or "No"; instead, specify relevant details or use "None" where \
+        applicable.
+        
+        OUTPUT SHAPE:
+        Find closet or exact match [outline, fill, lineal-color, hand-drawn]
+        
+        OUTPUT COLOR:
+        Find closet or exact match [gradient, solid-black, multicolor, azure, black, blue, chartreuse,
+         cyan, gray, green, orange, red, rose, spring-green, violet, white, yellow]
 
         isRelatedColor:
             Set this to True if the color in the input matches any items on the lists.
@@ -171,7 +124,12 @@ def changeIconColorAndShapeQueryBot(query):
             1. When there is an exact match for both color and shape:
                 - Return the corresponding keywords and set `isRelatedColor` and `isRelatedShape` to True.
                 - Set the `general_response` to:
-                  'The icon color has been updated to color, and the shape has been updated to shape.'
+                    if `isRelatedColor` is True :
+                  'The icon color has been updated to color',
+                    if `isRelatedShape` is True :
+                   'The shape has been updated to shape.'
+                if both `isRelatedColor` and `isRelatedShape`:
+                'The icon color has been updated to color, and the shape has been updated to shape.'
             2. When there is a match for either color or shape but not both:
                 - Return the exact match for one attribute and the closest match for the other.
                 - Set `isRelatedColor` or `isRelatedShape` to True for exact matches, and False for approximate matches.

@@ -1,4 +1,4 @@
-from enum import Enum
+from typing import Literal
 
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_core.pydantic_v1 import BaseModel, Field
@@ -145,35 +145,22 @@ def Color_Available_in_Filter(color):
         return True, color
     return False, color
 
-class AvailableColors(str, Enum):
-    blue = "Blue"
-    black = "Black"
-    cyan = "Cyan"
-    chartreuse = "Chartreuse"
-    azure = "Azure"
-    gray = "Gray"
-    green = "Green"
-    orange = "Orange"
-    red = "Red"
-    rose = "Rose"
-    spring_green = "Spring-Green"
-    violet = "Violet"
-    white = "White"
-    yellow = "Yellow"
-
 def process_available_color_for_filter(color: str):
     class ResponseStructure(BaseModel):
-        color: str = Field(default="", description="Color name detected from input")
-        is_available: bool = Field(default=False, description="Whether or not the color is available")
+        color: Literal['blue', 'black', 'cyan', 'chartreuse', 'azure', 'gray', 'green', 'orange', 'red', 'rose',
+                   'spring-green', 'violet', 'white', 'yellow'] = Field(
+            description="Find the exact color or closet color from input query."
+        )
+        is_available: bool = Field(default=False, description="if color is available or match the closets colors, return True otherwise False")
 
     template = """
-        You are an AI assistant tasked with identifying the closest match from a list of available colors.
+        You are an AI assistant tasked with identifying the exact or closest match from a list of colors Literal.
 
         Instructions:
-          1. If the color provided matches exactly with one of the available colors, return True and the color.
-          2. If the color does not match exactly but is close in name or shade to one of the available colors, return True and the closest matching color.
+          1. If the color provided matches exactly with one of the given colors Literal, return True and the color.
+          2. If the color does not match exactly but is close in name or shade to one of the colors Literal, return True and the closest matching color.
           3. If no close match is found, return False and the original color given as input.
-    """.format(colors="\n".join([color.value for color in AvailableColors]))
+    """
 
     structured_llm = model.with_structured_output(ResponseStructure)
     prompt = ChatPromptTemplate.from_messages(

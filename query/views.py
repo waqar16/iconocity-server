@@ -24,6 +24,7 @@ class UpdateIconAttributesByQuery(APIView):
             icon_style = None
             icon_color_name = None
             project_instance = Project.objects.last()
+            # project_instance = Project.objects.get(id=project_id, user=request.user)
             serializer = ProjectIconAttributesSerializer(project_instance)
             project_attributes = serializer.data["attributes"]
             print("before attributes-->", project_attributes)
@@ -33,18 +34,21 @@ class UpdateIconAttributesByQuery(APIView):
                 return Response(response.general_response, status.HTTP_200_OK)
 
             attributes = {
-                'color_palette': response.color_palette if format_value(response.color_palette) else project_attributes["color_palette"],
-                'iconography': response.iconography if format_value(response.iconography) else project_attributes["iconography"],
-                'brand_style': response.brand_style if format_value(response.brand_style) else project_attributes["brand_style"],
-                'gradient_usage': response.gradient_usage if format_value(response.gradient_usage) else project_attributes["gradient_usage"],
-                'imagery': response.imagery if format_value(response.imagery) else project_attributes["imagery"],
-                'shadow_and_depth': response.shadow_and_depth if format_value(response.shadow_and_depth) else project_attributes["shadow_and_depth"],
-                'line_thickness': response.line_thickness if format_value(response.line_thickness) else project_attributes["line_thickness"],
-                'corner_rounding': response.corner_rounding if format_value(response.corner_rounding) else project_attributes["corner_rounding"],
+                'color_palette': project_attributes["color_palette"],
+                'iconography': project_attributes["iconography"],
+                'brand_style': project_attributes["brand_style"],
+                'gradient_usage': project_attributes["gradient_usage"],
+                'imagery': project_attributes["imagery"],
+                'shadow_and_depth': project_attributes["shadow_and_depth"],
+                'line_thickness': project_attributes["line_thickness"],
+                'corner_rounding': project_attributes["corner_rounding"],
             }
 
             if response.isRelatedColor:
                 icon_color_name = response.color
+            else:
+                icon_color_name = response.color if response.color else project_attributes["color_palette"]
+
             if response.isRelatedShape:
                 icon_style = response.shape
 
