@@ -31,7 +31,10 @@ class UpdateIconAttributesByQuery(APIView):
             response = changeIconColorAndShapeQueryBot(query)
 
             if not response.isRelatedColor and not response.isRelatedShape:
-                return Response(response.general_response, status.HTTP_200_OK)
+                data = {
+                    'query_response': response.general_response
+                }
+                return Response(data=data, status=status.HTTP_200_OK)
 
             attributes = {
                 'color_palette': project_attributes["color_palette"],
@@ -64,7 +67,11 @@ class UpdateIconAttributesByQuery(APIView):
             if attributes:
                 project_instance.attributes = attributes
             project_instance.save_with_historical_record()
-            return Response(response.general_response, status=status.HTTP_200_OK)
+            response_serializers = ProjectIconAttributesSerializer(project_instance)
+            data = response_serializers.data
+            data['query_response'] = response.general_response
+            data['query_string'] = result
+            return Response(data=data, status=status.HTTP_200_OK)
         except Project.DoesNotExist:
             return Response({'error': "Project Does Not Exist"}, status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
