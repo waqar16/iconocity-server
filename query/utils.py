@@ -19,6 +19,7 @@ def GeneralQueryAnswer(message, icon_attributes):
         shadow_and_depth: str = Field(description="The shadow and depth of the picture")
         line_thickness: str = Field(description="The line thickness of the picture")
         corner_rounding: str = Field(description="The corner rounding of the picture")
+        general_response: str = Field(default=None, description="General response of the input query")
 
 
     structured_llm = llm.with_structured_output(Output_Structure)
@@ -59,7 +60,10 @@ def GeneralQueryAnswer(message, icon_attributes):
         • Gradient Usage: Linear, Blue-Yellow
         • Shadow and Depth: Drop shadows, Elevated
         • Line Thickness: Thin
-        • Corner Rounding: Slightly rounded"""
+        • Corner Rounding: Slightly rounded
+        
+    Note: Always set the `general_response` of input query if any icon design settings changed.
+    """
 
 
     prompt = ChatPromptTemplate.from_messages([("system", sys_prompt), MessagesPlaceholder("history", optional=True), ("human", "{question}")])
