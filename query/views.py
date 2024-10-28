@@ -1,3 +1,5 @@
+from http.client import responses
+
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.views import APIView
@@ -5,7 +7,7 @@ from rest_framework.response import Response
 from app.models import Project
 from app.serializers import ProjectIconAttributesSerializer, ProjectSerializer
 from auth_app.token_auth import CustomTokenAuthentication
-from query.utils import ChangeIconQueryBot, changeIconColorAndShapeQueryBot
+from query.utils import GeneralQueryAnswer, IdentifyQuery, changeIconColorAndShapeQueryBot
 from app.utils import fetch_icons, format_value
 
 
@@ -14,6 +16,9 @@ class UpdateIconAttributesByQuery(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
+        attributes = {}
+        isRelatedColor, isRelatedShape = False, False
+        general_response = None
         project_id = request.data['project_id']
         query = request.data['query']
         if not project_id:
@@ -23,44 +28,53 @@ class UpdateIconAttributesByQuery(APIView):
         try:
             icon_style = None
             icon_color_name = None
-            project_instance = Project.objects.last()
-            # project_instance = Project.objects.get(id=project_id, user=request.user)
+            # project_instance = Project.objects.last()
+            project_instance = Project.objects.get(id=project_id, user=request.user)
             serializer = ProjectIconAttributesSerializer(project_instance)
             project_attributes = serializer.data["attributes"]
             print("before attributes-->", project_attributes)
-            response = changeIconColorAndShapeQueryBot(query)
+            response = IdentifyQuery(query)
 
-            if not response.isRelatedColor and not response.isRelatedShape:
-                data = {
-                    'query_response': response.general_response
-                }
-                return Response(data=data, status=status.HTTP_200_OK)
+            if response.path == 'general':
+                actual_response = GeneralQueryAnswer(query, project_attributes)
 
-            attributes = {
-                'color_palette': project_attributes["color_palette"],
-                'iconography': project_attributes["iconography"],
-                'brand_style': project_attributes["brand_style"],
-                'gradient_usage': project_attributes["gradient_usage"],
-                'imagery': project_attributes["imagery"],
-                'shadow_and_depth': project_attributes["shadow_and_depth"],
-                'line_thickness': project_attributes["line_thickness"],
-                'corner_rounding': project_attributes["corner_rounding"],
-            }
+            if response.path == 'color':
+                isRelatedColor = True
+                actual_response = changeIconColorAndShapeQueryBot(query)
+                icon_color_name = actual_response.color
 
-            if response.isRelatedColor:
-                icon_color_name = response.color
-            else:
-                icon_color_name = response.color if response.color else project_attributes["color_palette"]
+            if response.path == 'shape':
+                isRelatedShape = True
+                actual_response = changeIconColorAndShapeQueryBot(query)
+                icon_style = actual_response.shape
 
-            if response.isRelatedShape:
-                icon_style = response.shape
-
-            f_icons_list, result, error = fetch_icons(response.isRelatedColor, response.isRelatedShape, attributes["color_palette"],
-                                       attributes["iconography"], attributes["brand_style"] , attributes["gradient_usage"],
-                                       attributes["imagery"], attributes["shadow_and_depth"], attributes["line_thickness"],
-                                               attributes["corner_rounding"], icon_color_name, icon_style)
+            f_icons_list, result, error = fetch_icons(
+                isRelatedColor,
+                isRelatedShape,
+                format_value(actual_response.color_palette),
+                format_value(actual_response.iconography),
+                format_value(actual_response.brand_style),
+                format_value(actual_response.gradient_usage),
+                format_value(actual_response.imagery),
+                format_value(actual_response.shadow_and_depth),
+                format_value(actual_response.line_thickness),
+                format_value(actual_response.corner_rounding),
+                icon_color_name,
+                icon_style
+            )
             if error:
                 return Response({"error": error}, status=status.HTTP_400_BAD_REQUEST)
+
+            attributes = {
+                'color_palette': format_value(actual_response.color_palette),
+                'iconography': format_value(actual_response.iconography),
+                'brand_style': format_value(actual_response.brand_style),
+                'gradient_usage': format_value(actual_response.gradient_usage),
+                'imagery': format_value(actual_response.imagery),
+                'shadow_and_depth': format_value(actual_response.shadow_and_depth),
+                'line_thickness': format_value(actual_response.line_thickness),
+                'corner_rounding': format_value(actual_response.corner_rounding),
+            }
 
             if f_icons_list:
                 project_instance.f_icons = f_icons_list
@@ -69,7 +83,6 @@ class UpdateIconAttributesByQuery(APIView):
             project_instance.save_with_historical_record()
             response_serializers = ProjectIconAttributesSerializer(project_instance)
             data = response_serializers.data
-            data['query_response'] = response.general_response
             data['query_string'] = result
             return Response(data=data, status=status.HTTP_200_OK)
         except Project.DoesNotExist:

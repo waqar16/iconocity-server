@@ -9,12 +9,8 @@ from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 os.environ["OPENAI_API_KEY"]= settings.OPENAI_API_KEY
 llm = ChatOpenAI(model="gpt-4o-mini")
 
-def ChangeIconQueryBot(message, icon_attributes, language):
+def GeneralQueryAnswer(message, icon_attributes):
     class Output_Structure(BaseModel):
-        response: str = Field(
-            description=f"Resolve user query in {language} in Escape Sequences")
-        # )
-        isRelated: bool = Field(description="if query is related to design setting icon return True, else return False")
         color_palette: str = Field(description="The color palette of the picture")
         iconography: str = Field(description="The iconography of the picture")
         brand_style: str = Field(description="The band style of the picture")
@@ -27,8 +23,7 @@ def ChangeIconQueryBot(message, icon_attributes, language):
 
     structured_llm = llm.with_structured_output(Output_Structure)
     sys_prompt = """You are interacting with an AI that helps you change the design of an icon. Below are the current \
-    design settings of the icon. You can adjust them by giving simple instructions, like "make the icon color blue" \
-    or "make the icon bigger."
+    design settings of the icon. You can adjust them by giving simple instructions.
     
     Current Icon Design Settings:
     • Color Palette: {color_palette}
@@ -69,7 +64,6 @@ def ChangeIconQueryBot(message, icon_attributes, language):
 
     prompt = ChatPromptTemplate.from_messages([("system", sys_prompt), MessagesPlaceholder("history", optional=True), ("human", "{question}")])
     partial_prompt = prompt.partial(
-                        language=language,
                         color_palette=icon_attributes.get("color_palette", " "),
                         iconography=icon_attributes.get("iconography", " "),
                         brand_style=icon_attributes.get("brand_style", " "),
@@ -82,6 +76,32 @@ def ChangeIconQueryBot(message, icon_attributes, language):
 
     chain = partial_prompt | structured_llm
     response = chain.invoke({"history": [], "question": message})
+    return response
+
+
+def IdentifyQuery(query):
+
+    class Output_Structure(BaseModel):
+        color: str = Field(default=None, description="Color name detected from input query")
+        shape: str = Field(default=None, description="Shape name detected from input query")
+        path: Literal['color', 'shape', 'general'] = Field(description="general query from input query")
+
+
+
+    structured_llm = llm.with_structured_output(Output_Structure)
+    sys_prompt = """
+        You are an AI designed to classify queries based on their content, specifically detecting colors, shapes, or general topics. 
+        For each query, determine if it is related to color, shape, or a general topic, and respond with the appropriate classification.
+    """
+
+    prompt = ChatPromptTemplate.from_messages(
+        [
+            ("system", sys_prompt),
+            MessagesPlaceholder("history", optional=True), ("human", "{question}")
+        ]
+    )
+    chain = prompt | structured_llm
+    response = chain.invoke({"history": [], "question": query})
     return response
 
 
