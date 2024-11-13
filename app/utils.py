@@ -21,6 +21,7 @@ class ImageInformation(BaseModel):
     shadow_and_depth: str = Field(description="The shadow and depth of the picture")
     line_thickness: str = Field(description="The line thickness of the picture")
     corner_rounding: str = Field(description="The corner rounding of the picture")
+    description: str = Field(description="The description of the picture")
 
 parser = JsonOutputParser(pydantic_object=ImageInformation)
 
@@ -75,6 +76,10 @@ def process_image_data(image_base64: str):
 
     8. Corner Rounding:
     •  Identify the degree of corner rounding in shapes (choose one: Sharp corners, Slightly rounded, Fully rounded).
+
+    9. Description:
+    •  Description should contain up to 10 nouns that best describe the content. Rank the nouns for description according to how well they describe the picture. Give description as single string with list of up to 10 nouns separated by comma, without numbering and new line.
+
     
     Output:
     • For each of the above attributes, populate the results as a single keyword representing the attribute detected. \
@@ -88,8 +93,8 @@ def process_image_data(image_base64: str):
         • Gradient Usage: Linear, Blue-Yellow
         • Shadow and Depth: Drop shadows, Elevated
         • Line Thickness: Thin
-        • Corner Rounding: Slightly rounded"""
-
+        • Corner Rounding: Slightly rounded
+        • Description: boxing, gloves, club, website, training, excellence, athletes, sport, youth, sessions"""
 
     # chain decorator to make it runnable
     @chain
@@ -103,6 +108,8 @@ def process_image_data(image_base64: str):
                         "url": f"data:image/jpeg;base64,{inputs['image']}"}},
                 ])]
         )
+        print("Milos msg.content in utils.py")
+        print(msg.content)
         return msg.content
 
     load_image_chain = TransformChain(
@@ -112,8 +119,23 @@ def process_image_data(image_base64: str):
     )
 
     vision_chain = load_image_chain | image_model | parser
+    milos_chain = load_image_chain | image_model
+    print("Milos load_image_chain in utils.py")
+    print(milos_chain.invoke({'image': image_base64, 'prompt': vision_prompt}))
     return vision_chain.invoke({'image': image_base64, 'prompt': vision_prompt})
 
+
+
+def is_image_url(self, url: str) -> bool:
+    try:
+        # Send a HEAD request to the URL to fetch only the headers
+        response = requests.head(url, allow_redirects=True)
+        
+        # Get the Content-Type header to check if it contains 'image'
+        content_type = response.headers.get('Content-Type', '')
+        return 'image' in content_type
+    except requests.RequestException:
+        return False
 
 def custom_error_message(errors):
     for key, value in errors.items():
@@ -217,7 +239,7 @@ def process_icons_query(inputs: str):
 
 # Function to fetch icons based on filters
 def fetch_icons(color_filter, style_filter, color_palette, iconography, brand_style,
-                gradient_usage, imagery, shadow_and_depth, line_thickness, corner_rounding,
+                gradient_usage, imagery, shadow_and_depth, line_thickness, corner_rounding, description,
                 icon_color_name=None, icon_style=None):
     f_icons_list = []
     is_above_100_icons = False
@@ -229,21 +251,23 @@ def fetch_icons(color_filter, style_filter, color_palette, iconography, brand_st
     result = process_icons_query(f"{color_palette} {iconography} {brand_style} {gradient_usage} {imagery} {shadow_and_depth} {line_thickness} {corner_rounding}")
 
     if color_filter and style_filter:
-        querystring = {"term": result, "thumbnail_size": "256", "per_page": "100", "page": "1",
+        querystring = {"term": description, "thumbnail_size": "256", "per_page": "100", "page": "1",
                        "filters[color]": icon_color_name.lower(), "filters[shape]": icon_style}
     elif color_filter:
-        querystring = {"term": result, "thumbnail_size": "256", "per_page": "100", "page": "1",
+        querystring = {"term": description, "thumbnail_size": "256", "per_page": "100", "page": "1",
                        "filters[color]": icon_color_name.lower()}
     elif style_filter:
-        querystring = {"term": result, "thumbnail_size": "256", "per_page": "100", "page": "1",
+        querystring = {"term": description, "thumbnail_size": "256", "per_page": "100", "page": "1",
                        "filters[shape]": icon_style, "filters[color]": color_palette.lower()}
     else:
-        querystring = {"term": result, "thumbnail_size": "256", "per_page": "100", "page": "1",
+        querystring = {"term": description, "thumbnail_size": "256", "per_page": "100", "page": "1",
                        "filters[color]": color_palette.lower()}
 
     querystring['order'] = 'relevance'
-
+    # querystring['term'] = 'boxing, gloves, hand, sport, club'
     # Fetch the first batch of 100 icons
+    print("Milos querystring in fetch_icons in utils.py")
+    print(querystring)
     response = requests.get(base_url, headers=headers, params=querystring)
     json_data = response.json()
     if response.status_code == 200:

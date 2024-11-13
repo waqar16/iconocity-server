@@ -4,16 +4,20 @@ from app.views import (
     ImageDownloadView,
     DownloadFreePikView,
     FigmaLinkProcessAPI,
+    ImageLinkProcessAPI,
     GetProjectListApi,
     GetProjectIconListApi,
     ChangeProjectName,
     GetProjectHistoryListApi,
     GetHistoryByHistoryIdApi,
+    SimilarIconSearchAPI,
 )
 
 urlpatterns = [
     path('uploadImage/', ImageProcessView.as_view(), name='ImageProcessView'),
     path('figmaLink/', FigmaLinkProcessAPI.as_view(), name='testImage'),
+    path('imageLink/', ImageLinkProcessAPI.as_view(), name='testImage'),
+    path('similarIconSearch/', SimilarIconSearchAPI.as_view(), name='similar_icon_search'),
     path('downloadImage', ImageDownloadView.as_view(), name='download_image'),
     path('downloadFreePik', DownloadFreePikView.as_view(), name='download_fpk'),
     path('getProjectList', GetProjectListApi.as_view(), name='get_project_list'),

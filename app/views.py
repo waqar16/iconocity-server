@@ -6,7 +6,7 @@ import zipfile
 
 from rest_framework.permissions import IsAuthenticated
 
-from app.utils import process_image_data, custom_error_message, Color_Available_in_Filter, fetch_icons, format_value, \
+from app.utils import process_image_data, is_image_url, custom_error_message, Color_Available_in_Filter, fetch_icons, format_value, \
     process_available_color_for_filter
 from app.serializers import ProjectSerializer, ProjectListSerializer, ProjectIconListSerializer, ProjectHistorySerializer
 import re
@@ -22,10 +22,11 @@ from auth_app.token_auth import CustomTokenAuthentication
 OPENAI_API_KEY = settings.OPENAI_API_KEY
 ICON_FINDER_KEY = settings.ICON_FINDER_KEY
 FIGMA_KEY = settings.FIGMA_API_KEY
+FREE_PIK_API_KEY = settings.FREE_PICK_API_KEY
 
 fast_llm = ChatOpenAI(api_key=OPENAI_API_KEY, model="gpt4o-mini", streaming=True)
 import webcolors
-
+from langchain.schema import HumanMessage
 
 class ImageProcessView(APIView):
     authentication_classes = [CustomTokenAuthentication]
@@ -44,7 +45,8 @@ class ImageProcessView(APIView):
             image_data = image_file.read()
             image_base64 = base64.b64encode(image_data).decode('utf-8')
             result = process_image_data(image_base64)
-
+            print("Result of process_image_data")
+            print(result)
             color_palette = format_value(result.get("color_palette", ""))
             iconography = format_value(result.get("iconography", ""))
             brand_style = format_value(result.get("brand_style", ""))
@@ -53,11 +55,13 @@ class ImageProcessView(APIView):
             shadow_and_depth = format_value(result.get("shadow_and_depth", ""))
             line_thickness = format_value(result.get("line_thickness", ""))
             corner_rounding = format_value(result.get("corner_rounding", ""))
+            description = format_value(result.get("description", ""))
 
             #Extract Color from Hex Code
             if icon_color_hex:
                 try:
                     color_name = webcolors.hex_to_name(icon_color_hex)
+                    print("color_name")
                     print(color_name)
                     color_filter, icon_color_name = process_available_color_for_filter(color_name)
                 except ValueError:
@@ -73,11 +77,35 @@ class ImageProcessView(APIView):
             #fetch Icons from free pik Api
             f_icons_list, result, error = fetch_icons(color_filter, style_filter, color_palette,
                                 iconography, brand_style, gradient_usage, imagery,
-                                shadow_and_depth, line_thickness, corner_rounding,
+                                shadow_and_depth, line_thickness, corner_rounding, description,
                                 icon_color_name, icon_style)
             if error:
                     return Response({"error": error}, status=status.HTTP_400_BAD_REQUEST)
 
+            # Generate keywords using the fast LLM with streaming enabled
+            keywords = []
+            try:
+                # Initialize the fast LLM model
+                fast_llm = ChatOpenAI(api_key=OPENAI_API_KEY, model="gpt-4", streaming=True)
+                
+                # Create a prompt for generating keywords based on the image description
+                prompt = HumanMessage(content=(
+                    f"Generate keywords based on these image characteristics: {description}. "
+                    f"Consider color palette: {color_palette}, style: {brand_style}, iconography: {iconography}, "
+                    f"gradient usage: {gradient_usage}, imagery style: {imagery}."
+                ))
+                
+                # Request keywords and handle the response stream
+                response_stream = fast_llm.stream([prompt])
+                for message in response_stream:
+                    # Extract keywords from the message
+                    keywords.extend(message.content.split(", "))
+                
+            except Exception as e:
+                print("Error with ChatGPT API:", str(e))
+                
+            combined_response = ''.join(keywords)
+            keywords = [keyword.strip().title() for keyword in combined_response.split(',') if keyword.strip()]
             #Save data in Project Modal
             attributes = {
                 'color_palette': color_palette,
@@ -88,15 +116,18 @@ class ImageProcessView(APIView):
                 'shadow_and_depth': shadow_and_depth,
                 'line_thickness': line_thickness,
                 'corner_rounding': corner_rounding,
-                'query_by_llm': result
+                'query_by_llm': result,
+                'keywords': keywords
             }
             project_data = {
                 'attributes' : attributes,
                 'f_icons': f_icons_list,
+                'keywords': keywords
             }
 
             project_serializer_obj = ProjectSerializer(data=project_data)
             if project_serializer_obj.is_valid():
+                # print(project_serializer_obj)
                 instance = project_serializer_obj.save()
                 instance.user = request.user
                 instance.save()
@@ -133,7 +164,7 @@ class ImageDownloadView(APIView):
 
 class DownloadFreePikView(APIView):
     authentication_classes = [CustomTokenAuthentication]
-    permission_classes = [IsAuthenticated]
+    # permission_classes = [IsAuthenticated]
 
     def get(self, request, *args, **kwargs):
         page_size = request.GET.get('page_size', '5')
@@ -297,6 +328,216 @@ class FigmaLinkProcessAPI(APIView):
         except Exception as e:
             print(str(e))
             return Response({"error": "Internal Server Error"}, status=status.HTTP_400_BAD_REQUEST)
+
+class ImageLinkProcessAPI(APIView):
+    authentication_classes = [CustomTokenAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, *args, **kwargs):
+        try:
+            result = None
+            feedback = None
+            image_url = request.data.get('screen_link')
+            icon_color_hex, icon_color_name = request.data.get('icon_color'), None
+            icon_style = request.data.get('icon_style')
+            color_filter, style_filter = False, True if icon_style else False
+
+            if not image_url:
+                return Response({"error": "No image URL provided"}, status=status.HTTP_400_BAD_REQUEST)
+
+            # Check if the URL is an image
+            if not self.is_image_url(image_url):
+                return Response({"error": "The URL does not point to a valid image."}, status=status.HTTP_400_BAD_REQUEST)
+
+            # Fetch the image data
+            response = requests.get(image_url)
+            if response.status_code != 200:
+                return Response({"error": "Failed to retrieve the image from the URL."}, status=status.HTTP_400_BAD_REQUEST)
+
+            # Convert image to base64
+            image_data = response.content
+            image_base64 = base64.b64encode(image_data).decode('utf-8')
+            result = process_image_data(image_base64)
+
+            # Process and save attributes
+            color_palette = format_value(result.get("color_palette", ""))
+            iconography = format_value(result.get("iconography", ""))
+            brand_style = format_value(result.get("brand_style", ""))
+            gradient_usage = format_value(result.get("gradient_usage", ""))
+            imagery = format_value(result.get("imagery", ""))
+            shadow_and_depth = format_value(result.get("shadow_and_depth", ""))
+            line_thickness = format_value(result.get("line_thickness", ""))
+            corner_rounding = format_value(result.get("corner_rounding", ""))
+            description = format_value(result.get("description", ""))
+
+            # Extract color from hex code if provided
+            if icon_color_hex:
+                try:
+                    color_name = webcolors.hex_to_name(icon_color_hex)
+                    color_filter, icon_color_name = Color_Available_in_Filter(color_name)
+                except ValueError:
+                    color_filter = False
+
+            # Fetch icons with specified filters
+            f_icons_list, result, error = fetch_icons(
+                color_filter, style_filter, color_palette, iconography,
+                brand_style, gradient_usage, imagery, shadow_and_depth,
+                line_thickness, corner_rounding, icon_color_name, icon_style
+            )
+            if error:
+                return Response({"error": error}, status=status.HTTP_400_BAD_REQUEST)
+
+            # Generate keywords using the fast LLM with streaming enabled
+            keywords = []
+            try:
+                # Initialize the fast LLM model
+                fast_llm = ChatOpenAI(api_key=OPENAI_API_KEY, model="gpt-4", streaming=True)
+                
+                # Create a prompt for generating keywords based on the image description
+                prompt = HumanMessage(content=(
+                    f"Generate keywords based on these image characteristics: {description}. "
+                    f"Consider color palette: {color_palette}, style: {brand_style}, iconography: {iconography}, "
+                    f"gradient usage: {gradient_usage}, imagery style: {imagery}."
+                ))
+                
+                # Request keywords and handle the response stream
+                response_stream = fast_llm.stream([prompt])
+                for message in response_stream:
+                    # Extract keywords from the message
+                    keywords.extend(message.content.split(", "))
+                
+            except Exception as e:
+                print("Error with ChatGPT API:", str(e))
+                
+            combined_response = ''.join(keywords)
+            keywords = [keyword.strip().title() for keyword in combined_response.split(',') if keyword.strip()]
+
+            # Prepare data to save in the Project model
+            attributes = {
+                'color_palette': color_palette,
+                'iconography': iconography,
+                'brand_style': brand_style,
+                'gradient_usage': gradient_usage,
+                'imagery': imagery,
+                'shadow_and_depth': shadow_and_depth,
+                'line_thickness': line_thickness,
+                'corner_rounding': corner_rounding,
+                'query_by_llm': result,
+                'keywords': keywords
+                
+            }
+            project_data = {
+                'attributes': attributes,
+                'f_icons': f_icons_list,
+                'image_url': image_url,
+            }
+
+            # Serialize and save project data
+            project_serializer_obj = ProjectSerializer(data=project_data)
+            if project_serializer_obj.is_valid():
+                instance = project_serializer_obj.save()
+                instance.user = request.user
+                instance.save()
+            return Response(project_serializer_obj.data, status=status.HTTP_200_OK)
+        except Exception as e:
+            print(str(e))
+            return Response({"error": "Internal Server Error"}, status=status.HTTP_400_BAD_REQUEST)
+    def is_image_url(self, url: str) -> bool:
+        try:
+            # Send a HEAD request to the URL to fetch only the headers
+            response = requests.head(url, allow_redirects=True)
+            
+            # Get the Content-Type header to check if it contains 'image'
+            content_type = response.headers.get('Content-Type', '')
+            return 'image' in content_type
+        except requests.RequestException:
+            return False
+
+
+class SimilarIconSearchAPI(APIView):
+    authentication_classes = [CustomTokenAuthentication]
+    # permission_classes = [IsAuthenticated]
+
+    def post(self, request, *args, **kwargs):
+        try:
+            # Get the icon_id from the request data
+            icon_id = request.data.get('icon_id')
+            if not icon_id:
+                return Response({"error": "Icon ID is required."}, status=status.HTTP_400_BAD_REQUEST)
+
+            # Fetch the icon details using the icon_id (You would use Freepik's API here to fetch icon details)
+            icon_details = self.get_icon_details(icon_id)
+            if not icon_details:
+                return Response({"error": "Icon not found."}, status=status.HTTP_404_NOT_FOUND)
+
+            # Get the family ID of the icon
+            family_id = icon_details['data']['family']['id']
+            
+            if family_id:
+                print(f"Family ID: {family_id}")
+            if not family_id:
+                return Response({"error": "Icon family ID is missing."}, status=status.HTTP_400_BAD_REQUEST)
+
+            # Fetch similar icons by family ID
+            similar_icons = self.get_similar_icons_by_family(family_id)
+            if not similar_icons:
+                return Response({"error": "No similar icons found."}, status=status.HTTP_404_NOT_FOUND)
+
+            # Prepare the response data (e.g., return the similar icons)
+            return Response({"similar_icons": similar_icons}, status=status.HTTP_200_OK)
+        
+        except Exception as e:
+            print(str(e))
+            return Response({"error": "Internal Server Error"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    def get_icon_details(self, icon_id):
+        try:
+            headers = {"x-freepik-api-key": f'{FREE_PIK_API_KEY}'}
+            response = requests.get(f'https://api.freepik.com/v1/icons/{icon_id}', headers=headers)
+            if response.status_code == 200:
+                return response.json()
+            else:
+                return None
+        except requests.RequestException as e:
+            print("Error fetching icon details:", e)
+            return None
+
+    def get_similar_icons_by_family(self, family_id):
+        # Ensure the API key is passed in securely (assuming it's set as an environment variable)
+        try:
+            headers = {"x-freepik-api-key": f'{FREE_PIK_API_KEY}'}
+            querystring = {"family-id": family_id, "per_page":"100"}
+            
+            # Make the GET request to Freepik API
+            response = requests.get(f'https://api.freepik.com/v1/icons', headers=headers, params=querystring)
+            
+            # Check if the response status code is 200 (successful)
+            if response.status_code == 200:
+                # Try to extract the icons from the response JSON
+                
+                response_data = response.json()
+                if 'data' in response_data:
+                    icons = []
+                    for item in response_data['data']:
+                        for thumbnail in item['thumbnails']:
+                            icons.append({
+                                'id': item['id'],
+                                'url': thumbnail['url']
+                            })
+                    return icons
+                else:
+                    print(f"Error: 'icons' key not found in response data.")
+                    return None
+            else:
+                print(f"Error: Received status code {response.status_code} - {response.text}")
+                return None
+
+        except requests.RequestException as e:
+            # Handle any exceptions that may arise during the API call
+            print("Error fetching similar icons:", e)
+            return None
+
+
 
 class GetProjectListApi(APIView):
     authentication_classes = [CustomTokenAuthentication]
