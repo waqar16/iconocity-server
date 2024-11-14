@@ -4,6 +4,7 @@ db.sqlite3
 venv
 autoicon_venv
 env
+.env.save
 
 .idea/
 app/__pycache__/
