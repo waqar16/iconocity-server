@@ -46,3 +46,8 @@ class ProjectUpdateSerializer(serializers.ModelSerializer):
         # Get the instance if it exists
         instance = self.instance
         instance.save_with_historical_record()
+        
+
+class IconSerializer(serializers.Serializer):
+    id = serializers.IntegerField()
+    url = serializers.URLField()

@@ -3,12 +3,13 @@ import io
 
 from langchain_openai import ChatOpenAI
 import zipfile
+from io import BytesIO
 
 from rest_framework.permissions import IsAuthenticated
 
 from app.utils import process_image_data, is_image_url, custom_error_message, Color_Available_in_Filter, fetch_icons, format_value, \
     process_available_color_for_filter
-from app.serializers import ProjectSerializer, ProjectListSerializer, ProjectIconListSerializer, ProjectHistorySerializer
+from app.serializers import ProjectSerializer, ProjectListSerializer, ProjectIconListSerializer, ProjectHistorySerializer, IconSerializer
 import re
 import requests
 from django.http import HttpResponse
@@ -217,6 +218,39 @@ class DownloadFreePikView(APIView):
         response['Content-Disposition'] = 'attachment; filename=icons.zip'
         return response
 
+
+class DownloadIconsZip(APIView):
+    def post(self, request, *args, **kwargs):
+        # Deserialize the input list of icons
+        serializer = IconSerializer(data=request.data.get('icons', []), many=True)  # We expect 'icons' as key in the payload
+        if not serializer.is_valid():
+            return Response({"error": "Invalid data", "details": serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Prepare an in-memory ZIP file
+        zip_buffer = BytesIO()
+        with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zip_file:
+            for icon in serializer.validated_data:
+                icon_id = icon['id']
+                icon_url = icon['url']
+
+                # Download the image
+                try:
+                    response = requests.get(icon_url)
+                    response.raise_for_status()  # Raise an error for bad responses
+
+                    # Get image content and write it to the ZIP file
+                    image_content = response.content
+                    zip_file.writestr(f"{icon_id}.png", image_content)
+                except requests.RequestException as e:
+                    return Response({"error": f"Failed to download {icon_url}: {str(e)}"}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Make sure we seek to the beginning of the buffer
+        zip_buffer.seek(0)
+
+        # Return the ZIP file as a response
+        response = HttpResponse(zip_buffer.read(), content_type='application/zip')
+        response['Content-Disposition'] = 'attachment; filename=icons.zip'
+        return response
 
 class FigmaLinkProcessAPI(APIView):
     authentication_classes = [CustomTokenAuthentication]

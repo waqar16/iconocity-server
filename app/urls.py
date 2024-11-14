@@ -11,6 +11,7 @@ from app.views import (
     GetProjectHistoryListApi,
     GetHistoryByHistoryIdApi,
     SimilarIconSearchAPI,
+    DownloadIconsZip
 )
 
 urlpatterns = [
@@ -20,6 +21,7 @@ urlpatterns = [
     path('similarIconSearch/', SimilarIconSearchAPI.as_view(), name='similar_icon_search'),
     path('downloadImage', ImageDownloadView.as_view(), name='download_image'),
     path('downloadFreePik', DownloadFreePikView.as_view(), name='download_fpk'),
+    path('downloadIcons', DownloadIconsZip.as_view(), name='download_icons'),
     path('getProjectList', GetProjectListApi.as_view(), name='get_project_list'),
     path('getProjectIconList/', GetProjectIconListApi.as_view(), name='get_project_icon'),
     path('changeProjectName/', ChangeProjectName.as_view(), name='change_project_name'),
