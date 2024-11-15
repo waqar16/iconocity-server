@@ -222,7 +222,7 @@ def process_icons_query(inputs: str):
     Here is the:\n\n {context}\n\n
     """
 
-    model = ChatOpenAI(temperature=0.5, model="gpt-4-vision-preview", max_tokens=1024)
+    model = ChatOpenAI(temperature=0.5, model="gpt-4", max_tokens=1024)
     class ResponseSchema(BaseModel):
         query: str = Field(..., description="query with brief string")
 
