@@ -90,6 +90,8 @@ def IdentifyQuery(query):
         shape: str = Field(default=None, description="Shape name detected from input query")
         path: Literal['color', 'shape', 'general'] = Field(description="general query from input query")
 
+    if not query or query.strip() == "":
+        return {"error": "Query cannot be empty or None"}
 
 
     structured_llm = llm.with_structured_output(Output_Structure)
@@ -106,6 +108,12 @@ def IdentifyQuery(query):
     )
     chain = prompt | structured_llm
     response = chain.invoke({"history": [], "question": query})
+    # Ensure expected attributes exist in response before accessing them
+    if 'color' in response and response['color']:
+        response['color'] = response['color'].lower()  # Safely call lower() if color exists
+
+    if 'shape' in response and response['shape']:
+        response['shape'] = response['shape'].lower()  # Safely call lower() if shape exists
     return response
 
 

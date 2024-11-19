@@ -26,6 +26,8 @@ SECRET_KEY = 'django-insecure-28=6-9n+qro4a7&n3bgoq9v#qgeb@r2k6@k1qqztz4bz4r&c^4
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
+# DATA_UPLOAD_MAX_MEMORY_SIZE = 10485760
+
 # ALLOWED_HOSTS = ['192.168.1.34', '192.168.1.20', '39.56.21.59', 'localhost', '*']
 ALLOWED_HOSTS = ["*"]
 OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')

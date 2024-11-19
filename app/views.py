@@ -428,7 +428,7 @@ class ImageLinkProcessAPI(APIView):
                 fast_llm = ChatOpenAI(api_key=OPENAI_API_KEY, model="gpt-4", streaming=True)
                 
                 # Create a prompt for generating keywords based on the image description
-                prompt = HumanMessage(content=(
+                prompt = HumanMessage(content=( 
                     f"Generate keywords based on these image characteristics: {description}. "
                     f"Consider color palette: {color_palette}, style: {brand_style}, iconography: {iconography}, "
                     f"gradient usage: {gradient_usage}, imagery style: {imagery}."
@@ -438,14 +438,16 @@ class ImageLinkProcessAPI(APIView):
                 response_stream = fast_llm.stream([prompt])
                 for message in response_stream:
                     # Extract keywords from the message
-                    keywords.extend(message.content.split(", "))
-                
+                    keywords.extend(message.content.split("\n"))
+                    
             except Exception as e:
                 print("Error with ChatGPT API:", str(e))
                 
-            combined_response = ''.join(keywords)
-            keywords = [keyword.strip().title() for keyword in combined_response.split(',') if keyword.strip()]
+            # Clean up the response and convert it into a list of valid keywords
+            keywords = [keyword.strip().title() for keyword in keywords if keyword.strip() and not keyword.strip().isdigit()]
 
+            # Optional: remove duplicates
+            keywords = list(set(keywords))
             # Prepare data to save in the Project model
             attributes = {
                 'color_palette': color_palette,
