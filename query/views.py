@@ -40,6 +40,7 @@ class UpdateIconAttributesByQuery(APIView):
             # print("serializer data:", serializer.data)
             project_attributes = serializer.data["attributes"]
             print("before attributes-->", project_attributes)
+            print("before f_icons-->", project_instance.f_icons[0])
             response = IdentifyQuery(query)
             
             print("response-->", response)
@@ -53,6 +54,7 @@ class UpdateIconAttributesByQuery(APIView):
                 actual_response = GeneralQueryAnswer(query, project_attributes)
                 if not actual_response:
                     return Response({'error': 'General query processing failed'}, status=400)
+                print(f"Actual response from LLM: {actual_response}")
                 general_response = actual_response.general_response
                 attributes['color_palette'] = format_value(actual_response.color_palette)
                 attributes['iconography'] = format_value(actual_response.iconography)
@@ -95,12 +97,14 @@ class UpdateIconAttributesByQuery(APIView):
                 project_instance.attributes = attributes
 
             if f_icons_list:
-                print("f_icons_list_old-->", project_instance.f_icons)
+                print("f_icons_list_old-->", project_instance.f_icons[0])
                 project_instance.f_icons = f_icons_list
-                print("f_icons_list_new-->", f_icons_list)
+                print("f_icons_list_new-->", f_icons_list[0])
 
             # Save the project instance and record changes in history
             project_instance.save_with_historical_record()
+            project_instance.refresh_from_db()
+            project_instance.skip_history_when_saving = True
                 
 
             response_serializers = ProjectIconAttributesSerializer(project_instance)

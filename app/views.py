@@ -94,6 +94,7 @@ class ImageProcessView(APIView):
                     f"Generate keywords based on these image characteristics: {description}. "
                     f"Consider color palette: {color_palette}, style: {brand_style}, iconography: {iconography}, "
                     f"gradient usage: {gradient_usage}, imagery style: {imagery}."
+                    f"Note: Only provide keywords, do not provide any other information."
                 ))
                 
                 # Request keywords and handle the response stream
@@ -489,7 +490,6 @@ class ImageLinkProcessAPI(APIView):
         except requests.RequestException:
             return False
 
-
 class SimilarIconSearchAPI(APIView):
     authentication_classes = [CustomTokenAuthentication]
     # permission_classes = [IsAuthenticated]
@@ -497,39 +497,42 @@ class SimilarIconSearchAPI(APIView):
     def post(self, request, *args, **kwargs):
         try:
             # Get the icon_id from the request data
-            icon_id = request.data.get('icon_id')
+            icon_id = request.data.get("icon_id")
             if not icon_id:
                 return Response({"error": "Icon ID is required."}, status=status.HTTP_400_BAD_REQUEST)
 
-            # Fetch the icon details using the icon_id (You would use Freepik's API here to fetch icon details)
+            # Fetch the icon details using the icon_id
             icon_details = self.get_icon_details(icon_id)
             if not icon_details:
                 return Response({"error": "Icon not found."}, status=status.HTTP_404_NOT_FOUND)
 
-            # Get the family ID of the icon
-            family_id = icon_details['data']['family']['id']
-            
-            if family_id:
-                print(f"Family ID: {family_id}")
-            if not family_id:
-                return Response({"error": "Icon family ID is missing."}, status=status.HTTP_400_BAD_REQUEST)
+            # Get related icons from the response
+            related_icons = icon_details.get("data", {}).get("related", {}).get("style", [])
+            if not related_icons:
+                return Response({"error": "No related icons found."}, status=status.HTTP_404_NOT_FOUND)
 
-            # Fetch similar icons by family ID
-            similar_icons = self.get_similar_icons_by_family(family_id)
-            if not similar_icons:
-                return Response({"error": "No similar icons found."}, status=status.HTTP_404_NOT_FOUND)
+            similar_icons = [
+                {
+                    "icon_id": icon_id,
+                    "similar_icon_id": icon["id"],
+                    "similar_icon_family_id": icon["family"]["id"],
+                    "url": icon.get("thumbnails", [{}])[0].get("url", "")  # The first thumbnail URL is selected
+                }
+                for icon in related_icons
+            ]
 
-            # Prepare the response data (e.g., return the similar icons)
             return Response({"similar_icons": similar_icons}, status=status.HTTP_200_OK)
-        
+
         except Exception as e:
             print(str(e))
             return Response({"error": "Internal Server Error"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     def get_icon_details(self, icon_id):
         try:
-            headers = {"x-freepik-api-key": f'{FREE_PIK_API_KEY}'}
-            response = requests.get(f'https://api.freepik.com/v1/icons/{icon_id}', headers=headers)
+            headers = {"x-freepik-api-key": f"{FREE_PIK_API_KEY}"}
+            response = requests.get(
+                f"https://api.freepik.com/v1/icons/{icon_id}", headers=headers
+            )
             if response.status_code == 200:
                 return response.json()
             else:
@@ -538,40 +541,89 @@ class SimilarIconSearchAPI(APIView):
             print("Error fetching icon details:", e)
             return None
 
-    def get_similar_icons_by_family(self, family_id):
-        # Ensure the API key is passed in securely (assuming it's set as an environment variable)
-        try:
-            headers = {"x-freepik-api-key": f'{FREE_PIK_API_KEY}'}
-            querystring = {"family-id": family_id, "per_page":"100"}
-            
-            # Make the GET request to Freepik API
-            response = requests.get(f'https://api.freepik.com/v1/icons', headers=headers, params=querystring)
-            
-            # Check if the response status code is 200 (successful)
-            if response.status_code == 200:
-                # Try to extract the icons from the response JSON
-                
-                response_data = response.json()
-                if 'data' in response_data:
-                    icons = []
-                    for item in response_data['data']:
-                        for thumbnail in item['thumbnails']:
-                            icons.append({
-                                'id': item['id'],
-                                'url': thumbnail['url']
-                            })
-                    return icons
-                else:
-                    print(f"Error: 'icons' key not found in response data.")
-                    return None
-            else:
-                print(f"Error: Received status code {response.status_code} - {response.text}")
-                return None
 
-        except requests.RequestException as e:
-            # Handle any exceptions that may arise during the API call
-            print("Error fetching similar icons:", e)
-            return None
+# class SimilarIconSearchAPI(APIView):
+#     authentication_classes = [CustomTokenAuthentication]
+#     # permission_classes = [IsAuthenticated]
+
+#     def post(self, request, *args, **kwargs):
+#         try:
+#             # Get the icon_id from the request data
+#             icon_id = request.data.get('icon_id')
+#             if not icon_id:
+#                 return Response({"error": "Icon ID is required."}, status=status.HTTP_400_BAD_REQUEST)
+
+#             # Fetch the icon details using the icon_id (You would use Freepik's API here to fetch icon details)
+#             icon_details = self.get_icon_details(icon_id)
+#             if not icon_details:
+#                 return Response({"error": "Icon not found."}, status=status.HTTP_404_NOT_FOUND)
+
+#             # Get the family ID of the icon
+#             family_id = icon_details['data']['family']['id']
+            
+#             if family_id:
+#                 print(f"Family ID: {family_id}")
+#             if not family_id:
+#                 return Response({"error": "Icon family ID is missing."}, status=status.HTTP_400_BAD_REQUEST)
+
+#             # Fetch similar icons by family ID
+#             similar_icons = self.get_similar_icons_by_family(family_id)
+#             if not similar_icons:
+#                 return Response({"error": "No similar icons found."}, status=status.HTTP_404_NOT_FOUND)
+
+#             # Prepare the response data (e.g., return the similar icons)
+#             return Response({"similar_icons": similar_icons}, status=status.HTTP_200_OK)
+        
+#         except Exception as e:
+#             print(str(e))
+#             return Response({"error": "Internal Server Error"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+#     def get_icon_details(self, icon_id):
+#         try:
+#             headers = {"x-freepik-api-key": f'{FREE_PIK_API_KEY}'}
+#             response = requests.get(f'https://api.freepik.com/v1/icons/{icon_id}', headers=headers)
+#             if response.status_code == 200:
+#                 return response.json()
+#             else:
+#                 return None
+#         except requests.RequestException as e:
+#             print("Error fetching icon details:", e)
+#             return None
+
+#     def get_similar_icons_by_family(self, family_id):
+#         # Ensure the API key is passed in securely (assuming it's set as an environment variable)
+#         try:
+#             headers = {"x-freepik-api-key": f'{FREE_PIK_API_KEY}'}
+#             querystring = {"family-id": family_id, "per_page":"100"}
+            
+#             # Make the GET request to Freepik API
+#             response = requests.get(f'https://api.freepik.com/v1/icons', headers=headers, params=querystring)
+            
+#             # Check if the response status code is 200 (successful)
+#             if response.status_code == 200:
+#                 # Try to extract the icons from the response JSON
+                
+#                 response_data = response.json()
+#                 if 'data' in response_data:
+#                     icons = []
+#                     for item in response_data['data']:
+#                         for thumbnail in item['thumbnails']:
+#                             icons.append({
+#                                 'id': item['id'],
+#                                 'url': thumbnail['url']
+#                             })
+#                     return icons
+#                 else:
+#                     print(f"Error: 'icons' key not found in response data.")
+#                     return None
+#             else:
+#                 print(f"Error: Received status code {response.status_code} - {response.text}")
+#                 return None
+
+#         except requests.RequestException as e:
+#             # Handle any exceptions that may arise during the API call
+#             print("Error fetching similar icons:", e)
+#             return None
 
 
 
