@@ -118,6 +118,7 @@ class ImageProcessView(APIView):
                 'shadow_and_depth': shadow_and_depth,
                 'line_thickness': line_thickness,
                 'corner_rounding': corner_rounding,
+                'description': description,
                 'query_by_llm': result,
                 'keywords': keywords
             }
@@ -459,6 +460,7 @@ class ImageLinkProcessAPI(APIView):
                 'shadow_and_depth': shadow_and_depth,
                 'line_thickness': line_thickness,
                 'corner_rounding': corner_rounding,
+                'description': description,
                 'query_by_llm': result,
                 'keywords': keywords
                 

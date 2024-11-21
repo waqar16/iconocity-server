@@ -64,19 +64,23 @@ class UpdateIconAttributesByQuery(APIView):
                 attributes['shadow_and_depth'] = format_value(actual_response.shadow_and_depth)
                 attributes['line_thickness'] = format_value(actual_response.line_thickness)
                 attributes['corner_rounding'] = format_value(actual_response.corner_rounding)
+                attributes['description'] = project_attributes['description']
             else:
                 attributes = project_attributes
 
             if response.path == 'color':
                 isRelatedColor = True
                 actual_response = changeIconColorAndShapeQueryBot(query)
+                print("actual_response for color-->", actual_response)
                 icon_color_name = actual_response.color if actual_response.color else None
+                attributes['color_palette'] = icon_color_name
                 general_response = actual_response.general_response
-                icon_style = None                
+                icon_style = None               
 
             if response.path == 'shape':
                 isRelatedShape = True
                 actual_response = changeIconColorAndShapeQueryBot(query)
+                print("actual_response for shape-->", actual_response)
                 icon_style = actual_response.shape if actual_response.shape else None
                 general_response = actual_response.general_response
                 icon_color_name = None
@@ -87,7 +91,7 @@ class UpdateIconAttributesByQuery(APIView):
                 isRelatedColor, isRelatedShape, attributes["color_palette"],
                 attributes["iconography"], attributes["brand_style"] , attributes["gradient_usage"],
                 attributes["imagery"], attributes["shadow_and_depth"], attributes["line_thickness"],
-                attributes["corner_rounding"], icon_color_name, icon_style
+                attributes["corner_rounding"], attributes["description"], icon_color_name, icon_style
             )
             if error:
                 return Response({"error": error}, status=status.HTTP_400_BAD_REQUEST)

@@ -38,7 +38,7 @@ def GeneralQueryAnswer(message, icon_attributes):
     
     User Input Guidelines:
         You can change any of the following icon design settings:
-            Color Palette (e.g., color, or contrast level).
+            Color Palette (e.g., color).
             Iconography (e.g., flat, outlined, filled; also change the size and shape of the icon).
             Brand Style(e.g., corporate, casual, modern, playful).
             Imagery (e.g., style and theme of any images or graphics).
