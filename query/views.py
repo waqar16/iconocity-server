@@ -73,7 +73,7 @@ class UpdateIconAttributesByQuery(APIView):
                 actual_response = changeIconColorAndShapeQueryBot(query)
                 print("actual_response for color-->", actual_response)
                 icon_color_name = actual_response.color if actual_response.color else None
-                attributes['color_palette'] = icon_color_name
+                attributes['color_palette'] = response.color
                 general_response = actual_response.general_response
                 icon_style = None               
 
@@ -86,7 +86,8 @@ class UpdateIconAttributesByQuery(APIView):
                 icon_color_name = None
             
             print("after attributes-->", attributes)
-
+            
+            attributes["description"] = attributes["imagery"]
             f_icons_list, result, error = fetch_icons(
                 isRelatedColor, isRelatedShape, attributes["color_palette"],
                 attributes["iconography"], attributes["brand_style"] , attributes["gradient_usage"],

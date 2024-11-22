@@ -89,6 +89,7 @@ def IdentifyQuery(query):
         color: str = Field(default=None, description="Color name detected from input query")
         shape: str = Field(default=None, description="Shape name detected from input query")
         path: Literal['color', 'shape', 'general'] = Field(description="general query from input query")
+        
 
     if not query or query.strip() == "":
         return {"error": "Query cannot be empty or None"}
@@ -98,6 +99,7 @@ def IdentifyQuery(query):
     sys_prompt = """
         You are an AI designed to classify queries based on their content, specifically detecting colors, shapes, or general topics. 
         For each query, determine if it is related to color, shape, or a general topic, and respond with the appropriate classification.
+        Ensure the shape attribute, if detected, is restricted to one of the following choices: outline, fill, lineal-color, hand-drawn.
     """
 
     prompt = ChatPromptTemplate.from_messages(
@@ -125,7 +127,7 @@ def changeIconColorAndShapeQueryBot(query):
         isRelatedColor: bool = Field(default=False, description="if query is related to available color return True, else return False")
         isRelatedShape: bool = Field(default=False, description="if query is related to available shape return True, else return False")
         general_response: str = Field(default=None, description="General response of the input query")
-
+    
 
     structured_llm = llm.with_structured_output(Output_Structure)
     sys_prompt = """You are interacting with an AI that helps you change the design of an icon. Below are the current \
@@ -138,7 +140,7 @@ def changeIconColorAndShapeQueryBot(query):
         applicable.
         
         OUTPUT SHAPE:
-        Find closet or exact match [outline, fill, lineal-color, hand-drawn]
+        Find closet or exact match [outline, fill, lineal-color, hand-drawn] output shape should be in outline, fill, lineal-color, hand-drawn.
         
         OUTPUT COLOR:
         Find closet or exact match [gradient, solid-black, multicolor, azure, black, blue, chartreuse,

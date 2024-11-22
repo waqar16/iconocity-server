@@ -171,118 +171,131 @@ def Color_Available_in_Filter(color):
     if color in Valid_Filter_list_FREEPIK:
         return True, color
     return False, color
-# def process_available_color_for_filter(color: str):
-#     class ResponseStructure(BaseModel):
-#         color: Literal[
-        # 'gradient',
-        # 'solid-black',
-        # 'multicolor',
-        # 'blue',
-        # 'azure',
-        # 'black',
-        # 'chartreuse',
-        # 'cyan',
-        # 'gray',
-        # 'green',
-        # 'orange',
-        # 'red',
-        # 'rose',
-        # 'spring-green',
-        # 'violet',
-        # 'white',
-        # 'yellow',
-#         ] = Field(description="Exact or closest color.")
-#         is_available: bool = Field(default=False, description="True if color matches or has a close match.")
 
-#     def find_most_similar_color(color_input: str) -> str:
-#         allowed_colors = [
-#             'blue', 'black', 'cyan', 'chartreuse', 'azure', 'gray', 
-#             'green', 'orange', 'red', 'rose', 'spring-green', 'violet', 'white', 'yellow'
-#         ]
-        
-#         color_input = color_input.lower()
-#         matches = get_close_matches(color_input, allowed_colors, n=1, cutoff=0.5)
-#         return matches[0] if matches else "gray"
-    
-
-#     # Preprocess the input color by finding the closest match
-#     similar_color = find_most_similar_color(color)
-
-#     template = """
-#         You are an AI assistant tasked with identifying the exact or closest match from a list of colors Literal.
-
-#         Instructions:
-#           1. If the color provided matches exactly with one of the given colors Literal, return True and the color.
-#           2. If the color does not match exactly but is close in name or shade to one of the colors Literal, return True and the closest matching color.
-#           3. If no close match is found, return False and the original color given as input.
-#     """
-
-#     structured_llm = model.with_structured_output(ResponseStructure)
-#     prompt = ChatPromptTemplate.from_messages([
-#         ("system", template), 
-#         MessagesPlaceholder("history", optional=True), 
-#         ("human", "{question}")
-#     ])
-#     partial_prompt = prompt.partial(language='English', query=similar_color)
-#     chain = partial_prompt | structured_llm
-
-#     try:
-#         response = chain.invoke({"question": similar_color})
-#         return response.is_available, response.color
-#     except ValidationError as e:
-#         # Handle unexpected errors gracefully
-#         return False, "gray"  # Default fallback to a valid color
-    
-   
-   
-   
-   
-    
-    
-# Defining the valid Freepik colors
-freepik_colors = [
-    'gradient', 'solid-black', 'multicolor', 'blue', 'azure', 'black', 'chartreuse',
-    'cyan', 'gray', 'green', 'orange', 'red', 'rose', 'spring-green', 'violet', 'white', 'yellow'
-]
-
-# Helper function to find the closest match (basic implementation based on substring matching)
-def get_closest_color(input_color: str) -> str:
-    for color in freepik_colors:
-        if input_color.lower() in color:
-            return color
-    return input_color  # Return the original input if no close match found
 
 def process_available_color_for_filter(color: str):
     class ResponseStructure(BaseModel):
         color: Literal[
-            'blue', 'black', 'cyan', 'chartreuse', 'azure', 'gray', 'green', 'orange', 'red', 'rose',
-            'spring-green', 'violet', 'white', 'yellow', 'gradient', 'solid-black', 'multicolor'
-        ] = Field(description="Find the exact or closest color from input query.")
-        is_available: bool = Field(default=False, description="Indicates if color is available or matches the closest color.")
+        'gradient',
+        'solid-black',
+        'multicolor',
+        'blue',
+        'azure',
+        'black',
+        'chartreuse',
+        'cyan',
+        'gray',
+        'green',
+        'orange',
+        'red',
+        'rose',
+        'spring-green',
+        'violet',
+        'white',
+        'yellow',
+        ] = Field(description="Exact or closest color.")
+        is_available: bool = Field(default=False, description="True if color matches or has a close match.")
 
     template = """
-        You are an AI assistant tasked with identifying the exact or closest match from a list of valid colors.
+        You are an AI assistant tasked with identifying the exact or closest match from a list of colors Literal.
 
         Instructions:
-          1. If the color provided matches exactly with one of the valid colors, return True and the color.
-          2. If the color does not match exactly but is close in name or shade to one of the valid colors, return True and the closest match.
-          3. If no close match is found, return False and the original input color.
+          1. If the color provided matches exactly with one of the given colors Literal, return True and the color.
+          2. If the color does not match exactly but is close in name or shade to one of the colors Literal, return True and the closest matching color.
+          3. If no close match is found, return False and the original color given as input.
     """
 
-    # Enhanced matching logic
-    closest_color = get_closest_color(color)
-    is_available = closest_color in freepik_colors
+    structured_llm = model.with_structured_output(ResponseStructure)
+    prompt = ChatPromptTemplate.from_messages([
+        ("system", template), 
+        MessagesPlaceholder("history", optional=True), 
+        ("human", "{question}")
+    ])
+    partial_prompt = prompt.partial(language='English', query=color)
+    chain = partial_prompt | structured_llm
 
-    response = ResponseStructure(
-        color=closest_color if is_available else color,
-        is_available=is_available
-    )
-    return response.is_available, response.color
+    try:
+        response = chain.invoke({"question": color})
+        return response.color
+    except ValidationError as e:
+        # Handle unexpected errors gracefully
+        return "gray"  # Default fallback to a valid color
+    
+   
+   
+   
 
+# Initialize the fast LLM model
+fast_llm = ChatOpenAI(api_key=settings.OPENAI_API_KEY, model="gpt-4", streaming=True)
 
+# Predefined available colors
+AVAILABLE_COLORS = [
+    'gradient', 'solid-black', 'multicolor', 'blue', 'azure', 'black', 'chartreuse',
+    'cyan', 'gray', 'green', 'orange', 'red', 'rose', 'spring-green', 'violet', 'white', 'yellow'
+]
 
+def find_closest_color(input_color: str) -> tuple:
+    """
+    Find the input color's match or closest match from the available color list using OpenAI.
+    
+    Args:
+        input_color (str): The input color name to match.
+        
+    Returns:
+        tuple: (bool, str) - A boolean indicating if the match is exact, and the matching or closest color.
+    """
+    try:
+        # Prompt to check for matching or closest color
+        prompt = HumanMessage(content=(
+            f"Given the input color '{input_color}', find the most similar color from this list: "
+            f"{', '.join(AVAILABLE_COLORS)}. "
+            f"Respond with the color that is most similar to '{input_color}' from the list. "
+            f"Only provide one color from the list as the response."
+        ))
 
+        # Generate a response using OpenAI
+        response_stream = fast_llm.stream([prompt])
+        
+        for message in response_stream:
+            matched_color = message.content.strip()
+            print(f"Matched color from LLM: {matched_color}")  # Debugging
 
+            # Check if the matched color is in the available colors list
+            if matched_color in AVAILABLE_COLORS:
+                # Return True for exact match, False for closest match
+                is_exact = matched_color.lower() == input_color.lower()
+                return (is_exact, matched_color)
+
+            # If exact match isn't found, fallback to Levenshtein distance or other closeness check
+            print(f"Exact match not found. Looking for closest match to '{input_color}'")
+            closest_color = min(AVAILABLE_COLORS, key=lambda x: levenshtein(x.lower(), input_color.lower()))
+            print(f"Closest color determined: {closest_color}")
+            return (False, closest_color)
+
+    except Exception as e:
+        print(f"Error with OpenAI: {e}")
+    
+    # Guaranteed fallback if no response or error
+    print(f"Fallback response used. Returning default color.")
+    return (False, AVAILABLE_COLORS[0])
+
+# Example of Levenshtein distance function for closest match (if needed)
+def levenshtein(s1, s2):
+    """Compute the Levenshtein distance between two strings."""
+    if len(s1) < len(s2):
+        return levenshtein(s2, s1)
+    if len(s2) == 0:
+        return len(s1)
+    previous_row = range(len(s2) + 1)
+    for i, c1 in enumerate(s1):
+        current_row = [i + 1]
+        for j, c2 in enumerate(s2):
+            insertions = previous_row[j + 1] + 1
+            deletions = current_row[j] + 1
+            substitutions = previous_row[j] + (c1 != c2)
+            current_row.append(min(insertions, deletions, substitutions))
+        previous_row = current_row
+    return previous_row[-1]
 
     
     
@@ -366,31 +379,31 @@ def fetch_icons(color_filter, style_filter, color_palette, iconography, brand_st
     headers = {
         "x-freepik-api-key": settings.FREE_PICK_API_KEY
     }
-    valid_color = format_value(color_palette) 
-    is_valid, matched_color = process_available_color_for_filter(valid_color)
-    if is_valid:
-        color_filter_value = matched_color.lower()
+    color = format_value(color_palette) 
+    if color is None or color == "":
+        color_filter_value = color
     else:
-        color_filter_value = valid_color
+        matched_color = find_closest_color(color)
+        print("Matched color-->", matched_color)
+        color_filter_value = matched_color
     # attributes with values
     result = process_icons_query(f"{color_palette} {iconography} {brand_style} {gradient_usage} {imagery} {shadow_and_depth} {line_thickness} {corner_rounding}")
     print("result of process_icons_query-->", result)
 
     if color_filter and style_filter:
-        querystring = {"term": description, "thumbnail_size": "256", "per_page": "100", "page": "1",
-                       "filters[color]": color_filter_value.lower(), "filters[shape]": icon_style}
+        querystring = {"term": description, "slug": imagery, "thumbnail_size": "256", "per_page": "100", "page": "1",
+                       "filters[color]": color_filter_value[1].lower(), "filters[shape]": icon_style}
     elif color_filter:
-        querystring = {"term": description, "thumbnail_size": "256", "per_page": "100", "page": "1",
-                       "filters[color]": color_filter_value.lower()}
+        querystring = {"term": description, "slug": imagery, "thumbnail_size": "256", "per_page": "100", "page": "1",
+                       "filters[color]": color_filter_value[1].lower()}
     elif style_filter:
-        querystring = {"term": description, "thumbnail_size": "256", "per_page": "100", "page": "1",
-                       "filters[shape]": icon_style, "filters[color]": color_filter_value.lower()}
+        querystring = {"term": description, "slug": imagery, "thumbnail_size": "256", "per_page": "100", "page": "1",
+                       "filters[shape]": icon_style, "filters[color]": color_filter_value[1].lower()}
     else:
-        querystring = {"term": description, "thumbnail_size": "256", "per_page": "100", "page": "1",
-                       "filters[color]": color_filter_value.lower()}
+        querystring = {"term": description, "slug": imagery, "thumbnail_size": "256", "per_page": "100", "page": "1",
+                       "filters[color]": color_filter_value[1].lower()}
 
     querystring['order'] = 'relevance'
-    # querystring['term'] = 'boxing, gloves, hand, sport, club'
     # Fetch the first batch of 100 icons
     print("Milos querystring in fetch_icons in utils.py")
     print(querystring)
