@@ -112,7 +112,7 @@ def GeneralQueryAnswer(message, icon_attributes):
 
     **Query:** "Change it!"
     **Output:**
-    Keep everything the same. General Response: Request is unclear. Please specify which attributes you'd like to change (e.g., color, style, or theme).
+    Keep everything the same. General Response: Please specify which attributes you'd like to change (e.g., color, style, or theme) OR anything else you'd like to refine. If the query is unclear or ambiguous, provide specific suggestions also. keep the chat human friendly and creative.
     """
     # sys_prompt = """You are interacting with an AI that helps you change the design of an icon. Below are the current \
     # design settings of the icon. You can adjust them by giving simple instructions.
