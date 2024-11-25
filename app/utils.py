@@ -386,21 +386,23 @@ def fetch_icons(color_filter, style_filter, color_palette, iconography, brand_st
         matched_color = find_closest_color(color)
         print("Matched color-->", matched_color)
         color_filter_value = matched_color
+        
+    color_filter_value = format_value(color_filter_value)
     # attributes with values
     result = process_icons_query(f"{color_palette} {iconography} {brand_style} {gradient_usage} {imagery} {shadow_and_depth} {line_thickness} {corner_rounding}")
     print("result of process_icons_query-->", result)
 
     if color_filter and style_filter:
-        querystring = {"term": description, "slug": imagery, "thumbnail_size": "256", "per_page": "100", "page": "1",
+        querystring = {"term": ', '.join(keyword.strip() for keyword in description.split(',')[:5]), "slug": imagery, "thumbnail_size": "256", "per_page": "100", "page": "1",
                        "filters[color]": color_filter_value[1].lower(), "filters[shape]": icon_style}
     elif color_filter:
-        querystring = {"term": description, "slug": imagery, "thumbnail_size": "256", "per_page": "100", "page": "1",
+        querystring = {"term": ', '.join(keyword.strip() for keyword in description.split(',')[:5]), "slug": imagery, "thumbnail_size": "256", "per_page": "100", "page": "1",
                        "filters[color]": color_filter_value[1].lower()}
     elif style_filter:
-        querystring = {"term": description, "slug": imagery, "thumbnail_size": "256", "per_page": "100", "page": "1",
+        querystring = {"term": ', '.join(keyword.strip() for keyword in description.split(',')[:5]), "slug": imagery, "thumbnail_size": "256", "per_page": "100", "page": "1",
                        "filters[shape]": icon_style, "filters[color]": color_filter_value[1].lower()}
     else:
-        querystring = {"term": description, "slug": imagery, "thumbnail_size": "256", "per_page": "100", "page": "1",
+        querystring = {"term": ', '.join(keyword.strip() for keyword in description.split(',')[:5]), "slug": imagery, "thumbnail_size": "256", "per_page": "100", "page": "1",
                        "filters[color]": color_filter_value[1].lower()}
 
     querystring['order'] = 'relevance'

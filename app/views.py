@@ -67,6 +67,7 @@ class ImageProcessView(APIView):
                     color_filter, icon_color_name = process_available_color_for_filter(color_name)
                 except ValueError:
                     color_filter = False
+                    icon_color_name = None
             else:
                 final_response_by_llm = process_available_color_for_filter(color_palette)
                 # if final_response_by_llm[0]:
