@@ -509,7 +509,7 @@ class ExchangeFigmaCodeForTokenView(APIView):
 
 class ImageLinkProcessAPI(APIView):
     authentication_classes = [CustomTokenAuthentication]
-    permission_classes = [IsAuthenticated]
+    permission_classes = [AllowAny]
 
     def post(self, request, *args, **kwargs):
         try:
@@ -529,11 +529,12 @@ class ImageLinkProcessAPI(APIView):
                 return Response({"error": "Invalid URL provided"}, status=status.HTTP_400_BAD_REQUEST)
             
             if is_figma_screen:
+                headers = {
+                    'X-Figma-Token': FIGMA_KEY or request.session.get('figma_token')
+                    }
                 
                 FILE_KEY = is_figma_screen.group(1)
                 NODE_ID = is_figma_screen.group(2)
-
-                node_parts = NODE_ID.split('-')
     
                 FIGMA_API_URL = f'https://api.figma.com/v1/images/{FILE_KEY}?ids={NODE_ID}&format=png'
                 
@@ -607,7 +608,7 @@ class ImageLinkProcessAPI(APIView):
             f_icons_list, result, error = fetch_icons(
                 color_filter, style_filter, color_palette, iconography,
                 brand_style, gradient_usage, imagery, shadow_and_depth,
-                line_thickness, corner_rounding, icon_color_name, icon_style
+                line_thickness, corner_rounding, description, icon_color_name, icon_style
             )
             if error:
                 return Response({"error": error}, status=status.HTTP_400_BAD_REQUEST)
