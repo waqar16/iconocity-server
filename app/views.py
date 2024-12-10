@@ -4,10 +4,11 @@ import io
 from langchain_openai import ChatOpenAI
 import zipfile
 from io import BytesIO
+from PIL import Image
 
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAuthenticated, AllowAny
 
-from app.utils import process_image_data, is_image_url, custom_error_message, Color_Available_in_Filter, fetch_icons, format_value, \
+from app.utils import process_image_data, custom_error_message, Color_Available_in_Filter, fetch_icons, format_value, \
     process_available_color_for_filter
 from app.serializers import ProjectSerializer, ProjectListSerializer, ProjectIconListSerializer, ProjectHistorySerializer, IconSerializer
 import re
@@ -19,15 +20,23 @@ from rest_framework import status
 from django.conf import settings
 from app.models import Project
 from auth_app.token_auth import CustomTokenAuthentication
+import webcolors
+from langchain.schema import HumanMessage
+import uuid
+
 
 OPENAI_API_KEY = settings.OPENAI_API_KEY
 ICON_FINDER_KEY = settings.ICON_FINDER_KEY
 FIGMA_KEY = settings.FIGMA_API_KEY
 FREE_PIK_API_KEY = settings.FREE_PICK_API_KEY
+FIGMA_CLIENT_ID = settings.FIGMA_CLIENT_ID
+FIGMA_CLIENT_SECRET = settings.FIGMA_CLIENT_SECRET
+REDIRECT_URL = settings.REDIRECT_URL
+
+STATE = str(uuid.uuid4())
 
 fast_llm = ChatOpenAI(api_key=OPENAI_API_KEY, model="gpt4o-mini", streaming=True)
-import webcolors
-from langchain.schema import HumanMessage
+
 
 class ImageProcessView(APIView):
     authentication_classes = [CustomTokenAuthentication]
@@ -255,9 +264,11 @@ class DownloadIconsZip(APIView):
         response['Content-Disposition'] = 'attachment; filename=icons.zip'
         return response
 
+
 class FigmaLinkProcessAPI(APIView):
     authentication_classes = [CustomTokenAuthentication]
-    permission_classes = [IsAuthenticated]
+    # permission_classes = [IsAuthenticated]
+    permission_classes = [AllowAny]
 
     def post(self, request, *args, **kwargs):
         try:
@@ -279,18 +290,47 @@ class FigmaLinkProcessAPI(APIView):
             if screen_link:
                 pattern = r'/design/([^/]+)/.*\?node-id=([^&]+)'
                 match = re.search(pattern, screen_link)
-                if match:
-                    FILE_KEY = match.group(1)
-                    NODE_ID = match.group(2)
-                else:
-                    return Response({"error": "Please Provide Valid Link"}, status=status.HTTP_400_BAD_REQUEST)
+                if not match:
+                    return Response({"error": "Invalid Figma link format. Please provide a valid link."},
+                                    status=status.HTTP_400_BAD_REQUEST)
 
+                FILE_KEY = match.group(1)
+                NODE_ID = match.group(2)
+
+                node_parts = NODE_ID.split('-')
+                node_id_numbers = [int(part) for part in node_parts]
+    
                 FIGMA_API_URL = f'https://api.figma.com/v1/images/{FILE_KEY}?ids={NODE_ID}&format=png'
-
+                
                 response = requests.get(FIGMA_API_URL, headers=headers)
-                if response.status_code == 404:
-                    return Response({"error": "Figma Link Must be Public"}, status=status.HTTP_400_BAD_REQUEST)
+                
+                print(response.json())
+                
+                if response.status_code != 200:
+                    return Response({"error": "Invalid file key or node-id. Please provide a valid link."}, status=status.HTTP_400_BAD_REQUEST)
+                
+                if response.status_code == 403:
+                    if request.session.get('figma_token'):
+                        access_token = request.session['figma_token']
+                        headers = {
+                            "Authorization": f"Bearer {access_token}"
+                        }
+                        response = requests.get(FIGMA_API_URL, headers=headers)
+                        image_url = response.json()['images'][NODE_ID.replace('-', ':')]
+                        image_response = requests.get(image_url)
+                        if image_response.status_code == 200:
+                            image_data = image_response.content
+                            image_base64 = base64.b64encode(image_data).decode('utf-8')
+                            result = process_image_data(image_base64)
+                    return Response({
+                        "error": "The link appears to be private. Please authorize access to your Figma files.",
+                        "oauth_url": f"https://www.figma.com/oauth?client_id={FIGMA_CLIENT_ID}&redirect_uri={REDIRECT_URL}&scope=file_read&state=YOUR_STATE&response_type=code"
+                    }, status=status.HTTP_403_FORBIDDEN)
+                    
                 if response.status_code == 200:
+                    if node_id_numbers[0] < 10:
+                        return Response({"error": "Detected multiple screens in the link. Please provide a single screen link for more efficient result."}, status=status.HTTP_400_BAD_REQUEST)
+                    
                     image_url = response.json()['images'][NODE_ID.replace('-', ':')]
                     image_response = requests.get(image_url)
                     if image_response.status_code == 200:
@@ -321,6 +361,7 @@ class FigmaLinkProcessAPI(APIView):
             shadow_and_depth = format_value(result.get("shadow_and_depth", ""))
             line_thickness = format_value(result.get("line_thickness", ""))
             corner_rounding = format_value(result.get("corner_rounding", ""))
+            description = format_value(result.get("description", ""))
 
             # Extract Color from Hex Code
             if icon_color_hex:
@@ -334,10 +375,34 @@ class FigmaLinkProcessAPI(APIView):
             f_icons_list, result, error = fetch_icons(color_filter, style_filter, color_palette,
                                        iconography, brand_style, gradient_usage, imagery,
                                        shadow_and_depth, line_thickness, corner_rounding,
-                                       icon_color_name, icon_style)
+                                       description, icon_color_name, icon_style)
             if error:
-                    return Response({"error": error}, status=status.HTTP_400_BAD_REQUEST)
-
+                return Response({"error": error}, status=status.HTTP_400_BAD_REQUEST)
+            # Generate keywords using the fast LLM with streaming enabled
+            keywords = []
+            try:
+                # Initialize the fast LLM model
+                fast_llm = ChatOpenAI(api_key=OPENAI_API_KEY, model="gpt-4", streaming=True)
+                
+                # Create a prompt for generating keywords based on the image description
+                prompt = HumanMessage(content=(
+                    f"Generate keywords based on these image characteristics: {description}. "
+                    f"Consider color palette: {color_palette}, style: {brand_style}, iconography: {iconography}, "
+                    f"gradient usage: {gradient_usage}, imagery style: {imagery}."
+                    f"Note: Only provide keywords, do not provide any other information."
+                ))
+                
+                # Request keywords and handle the response stream
+                response_stream = fast_llm.stream([prompt])
+                for message in response_stream:
+                    # Extract keywords from the message
+                    keywords.extend(message.content.split(", "))
+                
+            except Exception as e:
+                print("Error with ChatGPT API:", str(e))
+                
+            combined_response = ''.join(keywords)
+            keywords = [keyword.strip().title() for keyword in combined_response.split(',') if keyword.strip()]
             #Save data in Project Modal
             attributes = {
                 'color_palette': color_palette,
@@ -348,7 +413,10 @@ class FigmaLinkProcessAPI(APIView):
                 'shadow_and_depth': shadow_and_depth,
                 'line_thickness': line_thickness,
                 'corner_rounding': corner_rounding,
-                'query_by_llm': result
+                'query_by_llm': result,
+                'keywords': keywords,
+                'description': description
+                
             }
             project_data = {
                 'attributes' : attributes,
@@ -365,6 +433,76 @@ class FigmaLinkProcessAPI(APIView):
         except Exception as e:
             print(str(e))
             return Response({"error": "Internal Server Error"}, status=status.HTTP_400_BAD_REQUEST)
+
+
+class ExchangeFigmaCodeForTokenView(APIView):
+    """
+    Endpoint to securely exchange the authorization code for an access token with Figma.
+    """
+
+    permission_classes = [AllowAny]
+
+    def post(self, request, *args, **kwargs):
+        """
+        Handles exchanging the authorization code for an access token using Figma's OAuth endpoint.
+        """
+        # Extract authorization code from request
+        auth_code = request.data.get("code")
+        
+        if not auth_code:
+            return Response({"error": "Authorization code is required."}, status=400)
+
+        # Token endpoint URL
+        token_url = "https://api.figma.com/v1/oauth/token"
+
+        # Prepare Basic Auth Header
+        client_id = settings.FIGMA_CLIENT_ID
+        client_secret = settings.FIGMA_CLIENT_SECRET
+        credentials = f"{client_id}:{client_secret}"
+        encoded_credentials = base64.b64encode(credentials.encode()).decode()
+        print(encoded_credentials)
+        headers = {
+            "Authorization": f"Basic {encoded_credentials}",
+            "Content-Type": "application/x-www-form-urlencoded",
+        }
+
+        # Prepare request body
+        data = {
+            "grant_type": "authorization_code",
+            "code": auth_code,
+            "redirect_uri": REDIRECT_URL,  # Must match Figma's settings
+        }
+
+        try:
+            # Send the POST request to Figma's token endpoint
+            response = requests.post(token_url, headers=headers, data=data)
+
+            # Log response details
+            print("Response Status Code:", response.status_code)
+            print("Response Content:", response.content)
+
+            # Handle successful token response
+            if response.status_code == 200:
+                request.session['figma_token'] = token_data['access_token']
+                token_data = response.json()
+                return Response({
+                    "message": "Token exchange successful.",
+                    "token_data": token_data,
+                    "status_code": response.status_code,
+                })
+                
+
+            # Handle failure response
+            return Response({
+                "error": "Failed to exchange token.",
+                "status_code": response.status_code,
+                "response": response.json(),
+            }, status=500)
+
+        except requests.exceptions.RequestException as e:
+            # Handle network issues
+            return Response({"error": str(e)}, status=500)
+
 
 class ImageLinkProcessAPI(APIView):
     authentication_classes = [CustomTokenAuthentication]
@@ -493,6 +631,7 @@ class ImageLinkProcessAPI(APIView):
         except requests.RequestException:
             return False
 
+
 class SimilarIconSearchAPI(APIView):
     authentication_classes = [CustomTokenAuthentication]
     # permission_classes = [IsAuthenticated]
@@ -545,88 +684,58 @@ class SimilarIconSearchAPI(APIView):
             return None
 
 
-# class SimilarIconSearchAPI(APIView):
-#     authentication_classes = [CustomTokenAuthentication]
-#     # permission_classes = [IsAuthenticated]
+class GenerateIconVariationsAPIView(APIView):
+    permission_classes = [AllowAny]
 
-#     def post(self, request, *args, **kwargs):
-#         try:
-#             # Get the icon_id from the request data
-#             icon_id = request.data.get('icon_id')
-#             if not icon_id:
-#                 return Response({"error": "Icon ID is required."}, status=status.HTTP_400_BAD_REQUEST)
+    def post(self, request, *args, **kwargs):
+        try:
+            icon_url = request.data.get("icon_url")
+            variations = int(request.data.get("variations", 4))
 
-#             # Fetch the icon details using the icon_id (You would use Freepik's API here to fetch icon details)
-#             icon_details = self.get_icon_details(icon_id)
-#             if not icon_details:
-#                 return Response({"error": "Icon not found."}, status=status.HTTP_404_NOT_FOUND)
-
-#             # Get the family ID of the icon
-#             family_id = icon_details['data']['family']['id']
+            if variations not in [1, 2, 3, 4]:
+                return Response({"error": "Variations must be in range of 1 to 4"}, status=status.HTTP_400_BAD_REQUEST)
+            variation_count = variations
             
-#             if family_id:
-#                 print(f"Family ID: {family_id}")
-#             if not family_id:
-#                 return Response({"error": "Icon family ID is missing."}, status=status.HTTP_400_BAD_REQUEST)
+            if not icon_url:
+                return Response({"error": "Icon URL is required."}, status=status.HTTP_400_BAD_REQUEST)
+            if variation_count < 1:
+                return Response({"error": "Invalid variation count."}, status=status.HTTP_400_BAD_REQUEST) 
+            
+            icon_response = requests.get(icon_url)
+            if icon_response.status_code != 200:
+                return Response({"error": "Failed to fetch the icon from the URL."}, status=status.HTTP_400_BAD_REQUEST)
+            
+            # Convert image to PNG format
+            icon_image = Image.open(BytesIO(icon_response.content))
+            png_image_buffer = BytesIO()
+            icon_image = icon_image.convert("RGBA")  # Ensure compatibility
+            icon_image.save(png_image_buffer, format="PNG")
+            png_image_buffer.seek(0)
 
-#             # Fetch similar icons by family ID
-#             similar_icons = self.get_similar_icons_by_family(family_id)
-#             if not similar_icons:
-#                 return Response({"error": "No similar icons found."}, status=status.HTTP_404_NOT_FOUND)
+            # Call OpenAI's image variation API
+            openai_api_url = "https://api.openai.com/v1/images/variations"
+            headers = {
+                "Authorization": f"Bearer {settings.OPENAI_API_KEY}",
+            }
+            files = {
+                "image": ("icon.png", png_image_buffer.getvalue(), "image/png"),
+            }
+            data = {
+                "n": variation_count,
+                "size":  "256x256",
+            }
 
-#             # Prepare the response data (e.g., return the similar icons)
-#             return Response({"similar_icons": similar_icons}, status=status.HTTP_200_OK)
+            openai_response = requests.post(openai_api_url, headers=headers, files=files, data=data)
+
+            if openai_response.status_code != 200:
+                return Response({"error": "Failed to generate icon variations."}, status=openai_response.status_code)
+
+            variations_data = openai_response.json().get("data", [])
+            return Response(variations_data, status=status.HTTP_200_OK)
         
-#         except Exception as e:
-#             print(str(e))
-#             return Response({"error": "Internal Server Error"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        except Exception as e:
+            return Response({"error": f"An unexpected error occurred: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-#     def get_icon_details(self, icon_id):
-#         try:
-#             headers = {"x-freepik-api-key": f'{FREE_PIK_API_KEY}'}
-#             response = requests.get(f'https://api.freepik.com/v1/icons/{icon_id}', headers=headers)
-#             if response.status_code == 200:
-#                 return response.json()
-#             else:
-#                 return None
-#         except requests.RequestException as e:
-#             print("Error fetching icon details:", e)
-#             return None
-
-#     def get_similar_icons_by_family(self, family_id):
-#         # Ensure the API key is passed in securely (assuming it's set as an environment variable)
-#         try:
-#             headers = {"x-freepik-api-key": f'{FREE_PIK_API_KEY}'}
-#             querystring = {"family-id": family_id, "per_page":"100"}
-            
-#             # Make the GET request to Freepik API
-#             response = requests.get(f'https://api.freepik.com/v1/icons', headers=headers, params=querystring)
-            
-#             # Check if the response status code is 200 (successful)
-#             if response.status_code == 200:
-#                 # Try to extract the icons from the response JSON
-                
-#                 response_data = response.json()
-#                 if 'data' in response_data:
-#                     icons = []
-#                     for item in response_data['data']:
-#                         for thumbnail in item['thumbnails']:
-#                             icons.append({
-#                                 'id': item['id'],
-#                                 'url': thumbnail['url']
-#                             })
-#                     return icons
-#                 else:
-#                     print(f"Error: 'icons' key not found in response data.")
-#                     return None
-#             else:
-#                 print(f"Error: Received status code {response.status_code} - {response.text}")
-#                 return None
-
-#         except requests.RequestException as e:
-#             # Handle any exceptions that may arise during the API call
-#             print("Error fetching similar icons:", e)
-#             return None
 
 
 

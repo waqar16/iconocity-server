@@ -52,7 +52,7 @@ def GeneralQueryAnswer(message, icon_attributes):
         - **Imagery:** Adjust to reflect the industry (e.g., "Building," "Graph," "Abstract").
         - **Color Palette:** Choose colors that fit the industry (e.g., "Blue" for Finance, "Green" for Growth).
     - **For Ambiguous or Invalid Queries:** 
-        - Retain all current design settings unchanged.
+        - Retain all current design settings unchanged (Important).
         - Use the `general_response` field to guide the user on what is unclear or missing.
         - Provide specific suggestions on how to refine their query.
 

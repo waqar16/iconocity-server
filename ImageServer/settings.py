@@ -34,6 +34,9 @@ OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
 ICON_FINDER_KEY = os.getenv('ICON_FINDER_KEY')
 FIGMA_API_KEY = os.getenv('FIGMA_API_KEY')
 FREE_PICK_API_KEY = os.getenv('FREE_PICK_API_KEY')
+FIGMA_CLIENT_ID = os.getenv('FIGMA_CLIENT_ID')
+FIGMA_CLIENT_SECRET = os.getenv('FIGMA_CLIENT_SECRET')
+REDIRECT_URL = os.getenv('REDIRECT_URL')
 
 # Application definition
 

@@ -11,7 +11,9 @@ from app.views import (
     GetProjectHistoryListApi,
     GetHistoryByHistoryIdApi,
     SimilarIconSearchAPI,
-    DownloadIconsZip
+    DownloadIconsZip,
+    GenerateIconVariationsAPIView,
+    ExchangeFigmaCodeForTokenView
 )
 
 urlpatterns = [
@@ -27,5 +29,7 @@ urlpatterns = [
     path('changeProjectName/', ChangeProjectName.as_view(), name='change_project_name'),
     path('getProjectHistoryList/', GetProjectHistoryListApi.as_view(), name='get_project_history'),
     path('getHistoryByHistoryId/', GetHistoryByHistoryIdApi.as_view(), name='get_history_by_history_id'),
+    path('generateIconVariations/', GenerateIconVariationsAPIView.as_view(), name='generate_icon_variations'),
+    path('exchangeFigmaCodeForToken/', ExchangeFigmaCodeForTokenView.as_view(), name='exchange_figma_code_for_token'),
 
 ]
