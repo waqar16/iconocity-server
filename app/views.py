@@ -276,7 +276,7 @@ class FigmaLinkProcessAPI(APIView):
             result = None
             feedback = None
             headers = {
-                'X-Figma-Token': FIGMA_KEY
+                'X-Figma-Token': FIGMA_KEY or request.session.get('figma_token')
             }
 
             screen_link = request.data.get('screen_link')
@@ -309,13 +309,16 @@ class FigmaLinkProcessAPI(APIView):
                 if response.status_code != 200:
                     return Response({"error": "Invalid file key or node-id. Please provide a valid link."}, status=status.HTTP_400_BAD_REQUEST)
                 
-                if response.status_code == 403:
+                if response.json()['images'][NODE_ID.replace('-', ':')] == None or response.status_code == 403:
                     if request.session.get('figma_token'):
                         access_token = request.session['figma_token']
                         headers = {
                             "Authorization": f"Bearer {access_token}"
                         }
-                        response = requests.get(FIGMA_API_URL, headers=headers)
+                        try:
+                            response = requests.get(FIGMA_API_URL, headers=headers)
+                        except requests.exceptions.RequestException as e:
+                            return Response({"error": "You don't have access rights to the figma screen"}, status=status.HTTP_400_BAD_REQUEST)
                         image_url = response.json()['images'][NODE_ID.replace('-', ':')]
                         image_response = requests.get(image_url)
                         if image_response.status_code == 200:
@@ -328,8 +331,8 @@ class FigmaLinkProcessAPI(APIView):
                     }, status=status.HTTP_403_FORBIDDEN)
                     
                 if response.status_code == 200:
-                    if node_id_numbers[0] < 10:
-                        return Response({"error": "Detected multiple screens in the link. Please provide a single screen link for more efficient result."}, status=status.HTTP_400_BAD_REQUEST)
+                    # if node_id_numbers[0] < 10:
+                    #     return Response({"error": "Detected multiple screens in the link. Please provide a single screen link for more efficient result."}, status=status.HTTP_400_BAD_REQUEST)
                     
                     image_url = response.json()['images'][NODE_ID.replace('-', ':')]
                     image_response = requests.get(image_url)
@@ -483,7 +486,7 @@ class ExchangeFigmaCodeForTokenView(APIView):
 
             # Handle successful token response
             if response.status_code == 200:
-                request.session['figma_token'] = token_data['access_token']
+                request.session['figma_token'] = response.json()['access_token']
                 token_data = response.json()
                 return Response({
                     "message": "Token exchange successful.",
@@ -511,28 +514,75 @@ class ImageLinkProcessAPI(APIView):
     def post(self, request, *args, **kwargs):
         try:
             result = None
-            feedback = None
             image_url = request.data.get('screen_link')
             icon_color_hex, icon_color_name = request.data.get('icon_color'), None
             icon_style = request.data.get('icon_style')
             color_filter, style_filter = False, True if icon_style else False
 
             if not image_url:
-                return Response({"error": "No image URL provided"}, status=status.HTTP_400_BAD_REQUEST)
+                return Response({"error": "No URL provided"}, status=status.HTTP_400_BAD_REQUEST)
+            
+            is_image = self.is_image_url(image_url)
+            is_figma_screen = self.is_figma_url(image_url)
+            
+            if not is_image and not is_figma_screen:
+                return Response({"error": "Invalid URL provided"}, status=status.HTTP_400_BAD_REQUEST)
+            
+            if is_figma_screen:
+                
+                FILE_KEY = is_figma_screen.group(1)
+                NODE_ID = is_figma_screen.group(2)
 
-            # Check if the URL is an image
-            if not self.is_image_url(image_url):
-                return Response({"error": "The URL does not point to a valid image."}, status=status.HTTP_400_BAD_REQUEST)
+                node_parts = NODE_ID.split('-')
+    
+                FIGMA_API_URL = f'https://api.figma.com/v1/images/{FILE_KEY}?ids={NODE_ID}&format=png'
+                
+                response = requests.get(FIGMA_API_URL, headers=headers)
+                
+                print(response.json())
+                
+                if response.status_code != 200:
+                    return Response({"error": "Invalid file key or node-id. Please provide a valid link."}, status=status.HTTP_400_BAD_REQUEST)
+                
+                if response.json()['images'][NODE_ID.replace('-', ':')] == None or response.status_code == 403:
+                    if request.session.get('figma_token'):
+                        access_token = request.session['figma_token']
+                        headers = {
+                            "Authorization": f"Bearer {access_token}"
+                        }
+                        try:
+                            response = requests.get(FIGMA_API_URL, headers=headers)
+                        except requests.exceptions.RequestException as e:
+                            return Response({"error": "You don't have access rights to the figma screen"}, status=status.HTTP_400_BAD_REQUEST)
+                        image_url = response.json()['images'][NODE_ID.replace('-', ':')]
+                        image_response = requests.get(image_url)
+                        if image_response.status_code == 200:
+                            image_data = image_response.content
+                            image_base64 = base64.b64encode(image_data).decode('utf-8')
+                            result = process_image_data(image_base64)
+                    return Response({
+                        "error": "The link appears to be private. Please authorize access to your Figma files.",
+                        "oauth_url": f"https://www.figma.com/oauth?client_id={FIGMA_CLIENT_ID}&redirect_uri={REDIRECT_URL}&scope=file_read&state=YOUR_STATE&response_type=code"
+                    }, status=status.HTTP_403_FORBIDDEN)
+                    
+                if response.status_code == 200:
+                    image_url = response.json()['images'][NODE_ID.replace('-', ':')]
+                    image_response = requests.get(image_url)
+                    if image_response.status_code == 200:
+                        image_data = image_response.content
+                        image_base64 = base64.b64encode(image_data).decode('utf-8')
+                        result = process_image_data(image_base64)
 
-            # Fetch the image data
-            response = requests.get(image_url)
-            if response.status_code != 200:
-                return Response({"error": "Failed to retrieve the image from the URL."}, status=status.HTTP_400_BAD_REQUEST)
+            if is_image:
+                # Fetch the image data
+                response = requests.get(image_url)
+                if response.status_code != 200:
+                    return Response({"error": "Failed to retrieve the image from the URL."}, status=status.HTTP_400_BAD_REQUEST)
 
-            # Convert image to base64
-            image_data = response.content
-            image_base64 = base64.b64encode(image_data).decode('utf-8')
-            result = process_image_data(image_base64)
+                # Convert image to base64
+                image_data = response.content
+                image_base64 = base64.b64encode(image_data).decode('utf-8')
+                result = process_image_data(image_base64)
 
             # Process and save attributes
             color_palette = format_value(result.get("color_palette", ""))
@@ -620,6 +670,7 @@ class ImageLinkProcessAPI(APIView):
         except Exception as e:
             print(str(e))
             return Response({"error": "Internal Server Error"}, status=status.HTTP_400_BAD_REQUEST)
+
     def is_image_url(self, url: str) -> bool:
         try:
             # Send a HEAD request to the URL to fetch only the headers
@@ -630,6 +681,11 @@ class ImageLinkProcessAPI(APIView):
             return 'image' in content_type
         except requests.RequestException:
             return False
+        
+    def is_figma_url(self, url: str) -> bool:
+        pattern = r'/design/([^/]+)/.*\?node-id=([^&]+)'
+        match = re.search(pattern, url)
+        return match
 
 
 class SimilarIconSearchAPI(APIView):
@@ -723,15 +779,16 @@ class GenerateIconVariationsAPIView(APIView):
             data = {
                 "n": variation_count,
                 "size":  "256x256",
+                "response_format": "b64_json"
             }
+            
+            try:
+                openai_response = requests.post(openai_api_url, headers=headers, files=files, data=data)
 
-            openai_response = requests.post(openai_api_url, headers=headers, files=files, data=data)
-
-            if openai_response.status_code != 200:
-                return Response({"error": "Failed to generate icon variations."}, status=openai_response.status_code)
-
-            variations_data = openai_response.json().get("data", [])
-            return Response(variations_data, status=status.HTTP_200_OK)
+                variations_data = openai_response.json().get("data", [])
+                return Response(variations_data, status=status.HTTP_200_OK)
+            except Exception as e:
+                return Response({"error": f"An unexpected error occurred: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
         
         except Exception as e:
             return Response({"error": f"An unexpected error occurred: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
