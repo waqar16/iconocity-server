@@ -515,6 +515,7 @@ class ImageLinkProcessAPI(APIView):
             icon_color_hex, icon_color_name = request.data.get('icon_color'), None
             icon_style = request.data.get('icon_style')
             color_filter, style_filter = False, True if icon_style else False
+            figma_access_token = request.data.get('figma_token')
 
             if not image_url:
                 return Response({"error": "No URL provided"}, status=status.HTTP_400_BAD_REQUEST)
@@ -527,7 +528,7 @@ class ImageLinkProcessAPI(APIView):
             
             if is_figma_screen:
                 headers = {
-                    'X-Figma-Token': FIGMA_KEY or request.session.get('figma_token')
+                    'Authorization': f"Bearer {figma_access_token}" if figma_access_token else f"X-Figma-Token {FIGMA_KEY}"
                     }
                 
                 FILE_KEY = is_figma_screen.group(1)
@@ -539,27 +540,12 @@ class ImageLinkProcessAPI(APIView):
                 
                 print(response.json())
                 
-                if response.status_code != 200:
-                    return Response({"error": "Invalid file key or node-id. Please provide a valid link."}, status=status.HTTP_400_BAD_REQUEST)
+                # if response.status_code != 200:
+                #     return Response({"error": "Invalid file key or node-id. Please provide a valid link."}, status=status.HTTP_400_BAD_REQUEST)
                 
-                if response.json()['images'][NODE_ID.replace('-', ':')] == None or response.status_code == 403:
-                    if request.session.get('figma_token'):
-                        access_token = request.session['figma_token']
-                        headers = {
-                            "Authorization": f"Bearer {access_token}"
-                        }
-                        try:
-                            response = requests.get(FIGMA_API_URL, headers=headers)
-                        except requests.exceptions.RequestException as e:
-                            return Response({"error": "You don't have access rights to the figma screen"}, status=status.HTTP_400_BAD_REQUEST)
-                        image_url = response.json()['images'][NODE_ID.replace('-', ':')]
-                        image_response = requests.get(image_url)
-                        if image_response.status_code == 200:
-                            image_data = image_response.content
-                            image_base64 = base64.b64encode(image_data).decode('utf-8')
-                            result = process_image_data(image_base64)
+                if response.status_code == 403:
                     return Response({
-                        "error": "The link appears to be private. Please authorize access to your Figma files.",
+                        "error": "The link appears to be private. If this still occurs after authorizing access, Make sure you have the correct access rights to the figma screen.",
                         "oauth_url": f"https://www.figma.com/oauth?client_id={FIGMA_CLIENT_ID}&redirect_uri={REDIRECT_URL}&scope=file_read&state=YOUR_STATE&response_type=code"
                     }, status=status.HTTP_403_FORBIDDEN)
                     
