@@ -545,7 +545,7 @@ class ImageLinkProcessAPI(APIView):
                 
                 if response.status_code == 403:
                     return Response({
-                        "error": "The link appears to be private. If this still occurs after authorizing access, Make sure you have the correct access rights to the figma screen.",
+                        "error": "The figma screen link is private. Please re-upload the screen link after authorizing access. If this still occurs after authorizing access, Make sure the screen owner has shared the screen with you or you are the owner of the screen.",
                         "oauth_url": f"https://www.figma.com/oauth?client_id={FIGMA_CLIENT_ID}&redirect_uri={REDIRECT_URL}&scope=file_read&state=YOUR_STATE&response_type=code"
                     }, status=status.HTTP_403_FORBIDDEN)
                     
