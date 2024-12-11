@@ -411,8 +411,8 @@ def fetch_icons(color_filter, style_filter, color_palette, iconography, brand_st
         color = format_value(color_palette)
         if color:
             matched_color = find_closest_color(color)
-            print("Matched color from color_palette:", matched_color)
-            color_filter_value = matched_color
+            print("Matched color from color_palette:", matched_color[1])
+            color_filter_value = matched_color[1]
         else:
             color_filter_value = None  # No valid color to filter by
     
@@ -428,16 +428,16 @@ def fetch_icons(color_filter, style_filter, color_palette, iconography, brand_st
 
     if color_filter and style_filter:
         querystring = {"term": description, "slug": imagery, "thumbnail_size": "256", "per_page": "100", "page": "1",
-                       "filters[color]": color_filter_value[1].lower(), "filters[shape]": icon_style}
+                       "filters[color]": color_filter_value.lower(), "filters[shape]": icon_style}
     elif color_filter:
         querystring = {"term": description, "slug": imagery, "thumbnail_size": "256", "per_page": "100", "page": "1",
-                       "filters[color]": color_filter_value[1].lower()}
+                       "filters[color]": color_filter_value.lower()}
     elif style_filter:
         querystring = {"term": description, "slug": imagery, "thumbnail_size": "256", "per_page": "100", "page": "1",
-                       "filters[shape]": icon_style, "filters[color]": color_filter_value[1].lower()}
+                       "filters[shape]": icon_style, "filters[color]": color_filter_value.lower()}
     else:
         querystring = {"term": description, "slug": imagery, "thumbnail_size": "256", "per_page": "100", "page": "1",
-                       "filters[color]": color_filter_value[1].lower()}
+                       "filters[color]": color_filter_value.lower()}
 
     querystring['order'] = 'relevance'
     # Fetch the first batch of 100 icons

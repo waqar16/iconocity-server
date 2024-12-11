@@ -85,7 +85,6 @@ class UpdateIconAttributesByQuery(APIView):
                 icon_color_name = None
             
             print("after attributes-->", attributes)
-            
             attributes["description"] = attributes["imagery"]
             f_icons_list, result, error = fetch_icons(
                 isRelatedColor, isRelatedShape, attributes["color_palette"],

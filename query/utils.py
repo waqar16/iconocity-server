@@ -45,6 +45,10 @@ def GeneralQueryAnswer(message, icon_attributes):
     2. Ask for a theme-based design update (e.g., "Design for love" or "Corporate style").
     3. Use abstract queries (e.g., "Make it playful" or "Modern look").
     4. Submit an unclear or invalid query (e.g., incomplete, ambiguous, or unrelated instructions).
+    5. Ask for suggestions on how to refine their query.
+    6. Ask for a theme-based design update (e.g., "Design for love" or "Corporate style").
+    7. Use simple color or style words (e.g., "Circle" or "Blue").
+    8. Use general workds like "Room!" or "Building!".
 
     ### Task Instructions:
     - **For Clear and Valid Queries:** Update the attributes as per the user's instructions.
@@ -245,7 +249,7 @@ def changeIconColorAndShapeQueryBot(query):
         
         OUTPUT COLOR:
         Find closet or exact match of gradient, solid-black, multicolor, azure, black, blue, chartreuse,
-         cyan, gray, green, orange, red, rose, spring-green, violet, white, yellow
+         cyan, gray, green, orange, red, rose, spring-green, violet, white, yellow For example, if the input is "make the icon color pink or just pink," the output should be "rose." OR Golder if the input is "make the icon color gold or just gold," the output should be "yellow"(from the list). Dont return None always response the closest or exact match from list.
 
         isRelatedColor:
             Set this to True if the color in the input matches any items on the lists.
