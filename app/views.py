@@ -9,7 +9,7 @@ from PIL import Image
 from rest_framework.permissions import IsAuthenticated, AllowAny
 
 from app.utils import process_image_data, custom_error_message, Color_Available_in_Filter, fetch_icons, format_value, \
-    process_available_color_for_filter
+    process_available_color_for_filter, find_closest_color
 from app.serializers import ProjectSerializer, ProjectListSerializer, ProjectIconListSerializer, ProjectHistorySerializer, IconSerializer
 import re
 import requests
@@ -44,7 +44,7 @@ class ImageProcessView(APIView):
 
     def post(self, request, *args, **kwargs):
         try:
-            final_response_by_llm = None
+            # final_response_by_llm = None
             image_file = request.FILES.get('image')
             icon_color_hex, icon_color_name = request.data.get('icon_color'), None
             icon_style = request.data.get('icon_style')
@@ -69,21 +69,18 @@ class ImageProcessView(APIView):
 
             #Extract Color from Hex Code
             if icon_color_hex:
+                print("icon_color_hex provided")
                 try:
                     color_name = webcolors.hex_to_name(icon_color_hex)
                     print("color_name")
                     print(color_name)
-                    color_filter, icon_color_name = process_available_color_for_filter(color_name)
+                    color_filter, icon_color_name = find_closest_color(color_name)
                 except ValueError:
                     color_filter = False
                     icon_color_name = None
             else:
-                final_response_by_llm = process_available_color_for_filter(color_palette)
-                # if final_response_by_llm[0]:
-                #     color_filter, icon_color_name = final_response_by_llm
-                # else:
-                color_filter, icon_color_name = Color_Available_in_Filter(final_response_by_llm[1])
-
+                print("icon_color_hex not provided")
+                color_filter, icon_color_name = find_closest_color(color_palette)
 
             #fetch Icons from free pik Api
             f_icons_list, result, error = fetch_icons(color_filter, style_filter, color_palette,
@@ -91,7 +88,7 @@ class ImageProcessView(APIView):
                                 shadow_and_depth, line_thickness, corner_rounding, description,
                                 icon_color_name, icon_style)
             if error:
-                    return Response({"error": error}, status=status.HTTP_400_BAD_REQUEST)
+                return Response({"error": error}, status=status.HTTP_400_BAD_REQUEST)
 
             # Generate keywords using the fast LLM with streaming enabled
             keywords = []

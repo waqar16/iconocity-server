@@ -235,18 +235,18 @@ AVAILABLE_COLORS = [
     'cyan', 'gray', 'green', 'orange', 'red', 'rose', 'spring-green', 'violet', 'white', 'yellow'
 ]
 
+
 def find_closest_color(input_color: str) -> tuple:
     """
     Find the input color's match or closest match from the available color list using OpenAI.
-    
+
     Args:
         input_color (str): The input color name to match.
-        
+
     Returns:
         tuple: (bool, str) - A boolean indicating if the match is exact, and the matching or closest color.
     """
     try:
-        # Prompt to check for matching or closest color
         prompt = HumanMessage(content=(
             f"Given the input color '{input_color}', find the most similar color from this list: "
             f"{', '.join(AVAILABLE_COLORS)}. "
@@ -254,31 +254,52 @@ def find_closest_color(input_color: str) -> tuple:
             f"Only provide one color from the list as the response."
         ))
 
-        # Generate a response using OpenAI
         response_stream = fast_llm.stream([prompt])
-        
+
+        matched_color = None
         for message in response_stream:
-            matched_color = message.content.strip()
-            print(f"Matched color from LLM: {matched_color}")  # Debugging
+            response_content = message.content.strip()
+            if response_content:  # Only process non-empty responses
+                print(f"Matched color from LLM: {response_content}")  # Debugging
 
-            # Check if the matched color is in the available colors list
-            if matched_color in AVAILABLE_COLORS:
-                # Return True for exact match, False for closest match
-                is_exact = matched_color.lower() == input_color.lower()
-                return (is_exact, matched_color)
+                # Validate the matched color
+                if response_content in AVAILABLE_COLORS:
+                    matched_color = response_content
+                    is_exact = matched_color.lower() == input_color.lower()
+                    return (is_exact, matched_color)
 
-            # If exact match isn't found, fallback to Levenshtein distance or other closeness check
-            print(f"Exact match not found. Looking for closest match to '{input_color}'")
-            closest_color = min(AVAILABLE_COLORS, key=lambda x: levenshtein(x.lower(), input_color.lower()))
-            print(f"Closest color determined: {closest_color}")
-            return (False, closest_color)
+        # If no valid match from LLM, fallback to closest match
+        print(f"No valid match found in LLM response. Finding closest match for '{input_color}'.")
+        closest_color = find_closest_color_fallback(input_color)
+        return (False, closest_color)
 
     except Exception as e:
-        print(f"Error with OpenAI: {e}")
-    
-    # Guaranteed fallback if no response or error
-    print(f"Fallback response used. Returning default color.")
+        print(f"Error during OpenAI processing: {e}")
+
+    # Guaranteed fallback
+    print(f"Returning default fallback color.")
     return (False, AVAILABLE_COLORS[0])
+
+
+def find_closest_color_fallback(input_color: str) -> str:
+    """
+    Fallback mechanism to find the closest color using Levenshtein distance.
+
+    Args:
+        input_color (str): The input color name to match.
+
+    Returns:
+        str: The closest color from the available color list.
+    """
+    try:
+        # Use Levenshtein distance to find the closest match
+        closest_color = min(AVAILABLE_COLORS, key=lambda x: levenshtein(x.lower(), input_color.lower()))
+        print(f"Closest color via fallback: {closest_color}")
+        return closest_color
+    except Exception as e:
+        print(f"Error in fallback mechanism: {e}")
+        # Fallback to the first available color in case of error
+        return AVAILABLE_COLORS[0]
 
 # Example of Levenshtein distance function for closest match (if needed)
 def levenshtein(s1, s2):
@@ -380,18 +401,30 @@ def fetch_icons(color_filter, style_filter, color_palette, iconography, brand_st
     headers = {
         "x-freepik-api-key": settings.FREE_PICK_API_KEY
     }
-    color = format_value(color_palette) 
-    if color is None or color == "":
-        color_filter_value = color
+    
+    # Process icon color name if provided
+    if icon_color_name:
+        color_filter_value = icon_color_name
+        print("Using provided icon_color_name:", color_filter_value)
     else:
-        matched_color = find_closest_color(color)
-        print("Matched color-->", matched_color)
-        color_filter_value = matched_color
-        
+        # Fallback to color_palette
+        color = format_value(color_palette)
+        if color:
+            matched_color = find_closest_color(color)
+            print("Matched color from color_palette:", matched_color)
+            color_filter_value = matched_color
+        else:
+            color_filter_value = None  # No valid color to filter by
+    
     color_filter_value = format_value(color_filter_value)
-    # attributes with values
-    result = process_icons_query(f"{color_palette} {iconography} {brand_style} {gradient_usage} {imagery} {shadow_and_depth} {line_thickness} {corner_rounding}")
-    print("result of process_icons_query-->", result)
+    print("color_filter_value-->", color_filter_value)
+
+    # Process attributes and query icons
+    result = process_icons_query(
+        f"{color_filter_value} {iconography} {brand_style} {gradient_usage} {imagery} {shadow_and_depth} "
+        f"{line_thickness} {corner_rounding}"
+    )
+    print("Result of process_icons_query-->", result)
 
     if color_filter and style_filter:
         querystring = {"term": description, "slug": imagery, "thumbnail_size": "256", "per_page": "100", "page": "1",

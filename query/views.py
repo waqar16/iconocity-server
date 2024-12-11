@@ -27,7 +27,6 @@ class UpdateIconAttributesByQuery(APIView):
         if not project_id:
             return Response({'error': 'Please Provide Project Id'}, status=400)
 
-
         try:
             icon_style = None
             icon_color_name = None

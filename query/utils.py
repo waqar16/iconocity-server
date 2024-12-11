@@ -9,6 +9,7 @@ from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 os.environ["OPENAI_API_KEY"]= settings.OPENAI_API_KEY
 llm = ChatOpenAI(model="gpt-4o-mini")
 
+
 def GeneralQueryAnswer(message, icon_attributes):
     class Output_Structure(BaseModel):
         color_palette: str = Field(description="The color palette of the picture")
@@ -180,11 +181,9 @@ def IdentifyQuery(query):
         color: str = Field(default=None, description="Color name detected from input query")
         shape: str = Field(default=None, description="Shape name detected from input query")
         path: Literal['color', 'shape', 'general'] = Field(description="general query from input query")
-        
 
     if not query or query.strip() == "":
         return {"error": "Query cannot be empty or None"}
-
 
     structured_llm = llm.with_structured_output(Output_Structure)
     # sys_prompt = """
@@ -230,7 +229,6 @@ def changeIconColorAndShapeQueryBot(query):
         isRelatedColor: bool = Field(default=False, description="if query is related to available color return True, else return False")
         isRelatedShape: bool = Field(default=False, description="if query is related to available shape return True, else return False")
         general_response: str = Field(default=None, description="General response of the input query")
-    
 
     structured_llm = llm.with_structured_output(Output_Structure)
     sys_prompt = """You are interacting with an AI that helps you change the design of an icon. Below are the current \
@@ -246,8 +244,8 @@ def changeIconColorAndShapeQueryBot(query):
         Find closet or exact match [outline, fill, lineal-color, hand-drawn] output shape should be in outline, fill, lineal-color, hand-drawn.
         
         OUTPUT COLOR:
-        Find closet or exact match [gradient, solid-black, multicolor, azure, black, blue, chartreuse,
-         cyan, gray, green, orange, red, rose, spring-green, violet, white, yellow]
+        Find closet or exact match of gradient, solid-black, multicolor, azure, black, blue, chartreuse,
+         cyan, gray, green, orange, red, rose, spring-green, violet, white, yellow
 
         isRelatedColor:
             Set this to True if the color in the input matches any items on the lists.
