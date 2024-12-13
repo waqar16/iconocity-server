@@ -33,7 +33,6 @@ FIGMA_CLIENT_ID = settings.FIGMA_CLIENT_ID
 FIGMA_CLIENT_SECRET = settings.FIGMA_CLIENT_SECRET
 REDIRECT_URL = settings.REDIRECT_URL
 
-STATE = str(uuid.uuid4())
 
 fast_llm = ChatOpenAI(api_key=OPENAI_API_KEY, model="gpt4o-mini", streaming=True)
 
@@ -324,7 +323,7 @@ class FigmaLinkProcessAPI(APIView):
                             result = process_image_data(image_base64)
                     return Response({
                         "error": "The link appears to be private. Please authorize access to your Figma files.",
-                        "oauth_url": f"https://www.figma.com/oauth?client_id={FIGMA_CLIENT_ID}&redirect_uri={REDIRECT_URL}&scope=file_read&state=YOUR_STATE&response_type=code"
+                        "oauth_url": f"https://www.figma.com/oauth?client_id={FIGMA_CLIENT_ID}&redirect_uri={REDIRECT_URL}&scope=file_read&state=US&response_type=code"
                     }, status=status.HTTP_403_FORBIDDEN)
                     
                 if response.status_code == 200:
@@ -546,7 +545,7 @@ class ImageLinkProcessAPI(APIView):
                 if response.status_code == 403:
                     return Response({
                         "error": "The figma screen link is private. Please re-upload the screen link after authorizing access. If this still occurs after authorizing access, Make sure the screen owner has shared the screen with you or you are the owner of the screen.",
-                        "oauth_url": f"https://www.figma.com/oauth?client_id={FIGMA_CLIENT_ID}&redirect_uri={REDIRECT_URL}&scope=file_read&state=YOUR_STATE&response_type=code"
+                        "oauth_url": f"https://www.figma.com/oauth?client_id={FIGMA_CLIENT_ID}&redirect_uri={REDIRECT_URL}&scope=file_read&state=US&response_type=code"
                     }, status=status.HTTP_403_FORBIDDEN)
                     
                 if response.status_code == 200:
@@ -607,6 +606,7 @@ class ImageLinkProcessAPI(APIView):
                     f"Generate keywords based on these image characteristics: {description}. "
                     f"Consider color palette: {color_palette}, style: {brand_style}, iconography: {iconography}, "
                     f"gradient usage: {gradient_usage}, imagery style: {imagery}."
+                    f"Respond with a list of keywords. for example: Tree, Modern, Deisgn, etc. Provide up to top 5 keywords."
                 ))
                 
                 # Request keywords and handle the response stream
