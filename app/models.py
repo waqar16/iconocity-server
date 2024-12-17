@@ -17,7 +17,7 @@ class Project(TimeStampedModel):
     name = models.CharField(max_length=100, blank=True)
     attributes = models.JSONField(default=dict, blank=True)
     f_icons = models.JSONField(default=list, blank=True)
-    screen_link =models.URLField(blank=True)
+    screen_link = models.URLField(blank=True)
     history = HistoricalRecords()
     user = models.ForeignKey(get_user_model(), on_delete=models.CASCADE, null=True, blank=True)
 
@@ -25,20 +25,20 @@ class Project(TimeStampedModel):
         print("without history")
         self.skip_history_when_saving = True
         if not self.name:
-            # Generate a unique name
+            # Generate a unique name per user
             base_name = 'Untitled'
             count = 1
             unique_name = base_name
 
-            while Project.objects.filter(name=unique_name).exists():
+            while Project.objects.filter(name=unique_name, user=self.user).exists():
                 unique_name = f'{base_name} {count}'
                 count += 1
 
             self.name = unique_name
 
-        #limit Records to Five
-        if Project.objects.count() >= 5:
-            oldest_project = Project.objects.order_by('created_at').first()  # or 'created_at' if you have a timestamp
+        # Limit records to 5 per user
+        if Project.objects.filter(user=self.user).count() >= 5:
+            oldest_project = Project.objects.filter(user=self.user).order_by('created_at').first()
             if oldest_project:
                 oldest_project.delete()
 
@@ -46,24 +46,21 @@ class Project(TimeStampedModel):
 
     def save_with_historical_record(self, *args, **kwargs):
         if not self.name:
-            count = Project.objects.filter(name__startswith='Untitled').count() + 1
+            count = Project.objects.filter(name__startswith='Untitled', user=self.user).count() + 1
             self.name = f'Untitled{count}'
 
         print("with history")
-        #limit Records to Five
-        if Project.objects.count() >= 5:
-            oldest_project = Project.objects.order_by('created_at').first()  # or 'created_at' if you have a timestamp
+        # Limit records to 5 per user
+        if Project.objects.filter(user=self.user).count() >= 5:
+            oldest_project = Project.objects.filter(user=self.user).order_by('created_at').first()
             if oldest_project:
                 oldest_project.delete()
 
-        # limits History Records to five versions
+        # Limit historical records to 5
         historical_records = self.history.all()
-        excess_records = historical_records.count()
-        if excess_records >= 5:
-            # Get the IDs of the excess records
+        if historical_records.count() >= 5:
             oldest_record = historical_records.order_by('history_date').first()
             if oldest_record:
                 oldest_record.delete()
-            # Delete the excess historical records
 
         super(Project, self).save(*args, **kwargs)
