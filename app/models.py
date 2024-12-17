@@ -17,29 +17,28 @@ class Project(TimeStampedModel):
     name = models.CharField(max_length=100, blank=True)
     attributes = models.JSONField(default=dict, blank=True)
     f_icons = models.JSONField(default=list, blank=True)
-    screen_link = models.URLField(blank=True)
+    screen_link =models.URLField(blank=True)
     history = HistoricalRecords()
     user = models.ForeignKey(get_user_model(), on_delete=models.CASCADE, null=True, blank=True)
 
     def save(self, *args, **kwargs):
         print("without history")
         self.skip_history_when_saving = True
-
         if not self.name:
+            # Generate a unique name
             base_name = 'Untitled'
             count = 1
-            unique_name = f'{base_name} {count}'
+            unique_name = base_name
 
-            # Ensure the unique name is truly unique for the user
             while Project.objects.filter(name=unique_name, user=self.user).exists():
-                count += 1
                 unique_name = f'{base_name} {count}'
+                count += 1
 
             self.name = unique_name
 
         #limit Records to Five
         if Project.objects.count() >= 5:
-            oldest_project = Project.objects.filter(user=self.user).order_by('created_at').first()
+            oldest_project = Project.objects.filter(user=self.user).order_by('created_at').first()  # or 'created_at' if you have a timestamp
             if oldest_project:
                 oldest_project.delete()
 
@@ -53,7 +52,7 @@ class Project(TimeStampedModel):
         print("with history")
         #limit Records to Five
         if Project.objects.count() >= 5:
-            oldest_project = Project.objects.filter(user=self.user).order_by('created_at').first()
+            oldest_project = Project.objects.filter(user=self.user).order_by('created_at').first()  # or 'created_at' if you have a timestamp
             if oldest_project:
                 oldest_project.delete()
 

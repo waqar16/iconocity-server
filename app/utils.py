@@ -443,6 +443,7 @@ def fetch_icons(color_filter, style_filter, color_palette, iconography, brand_st
     print("Milos querystring in fetch_icons in utils.py")
     print(querystring)
     response = requests.get(base_url, headers=headers, params=querystring)
+    print(response)
     json_data = response.json()
     if response.status_code == 200:
         try:
