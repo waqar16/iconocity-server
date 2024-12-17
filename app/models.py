@@ -25,7 +25,7 @@ class Project(TimeStampedModel):
         print("without history")
         self.skip_history_when_saving = True
         if not self.name:
-            # Generate a unique name per user
+            # Generate a unique name
             base_name = 'Untitled'
             count = 1
             unique_name = base_name
@@ -36,8 +36,8 @@ class Project(TimeStampedModel):
 
             self.name = unique_name
 
-        # Limit records to 5 per user
-        if Project.objects.filter(user=self.user).count() >= 5:
+        #limit Records to Five
+        if Project.objects.count() >= 5:
             oldest_project = Project.objects.filter(user=self.user).order_by('created_at').first()
             if oldest_project:
                 oldest_project.delete()
@@ -46,21 +46,24 @@ class Project(TimeStampedModel):
 
     def save_with_historical_record(self, *args, **kwargs):
         if not self.name:
-            count = Project.objects.filter(name__startswith='Untitled', user=self.user).count() + 1
+            count = Project.objects.filter(name__startswith='Untitled').count() + 1
             self.name = f'Untitled{count}'
 
         print("with history")
-        # Limit records to 5 per user
-        if Project.objects.filter(user=self.user).count() >= 5:
+        #limit Records to Five
+        if Project.objects.count() >= 5:
             oldest_project = Project.objects.filter(user=self.user).order_by('created_at').first()
             if oldest_project:
                 oldest_project.delete()
 
-        # Limit historical records to 5
+        # limits History Records to five versions
         historical_records = self.history.all()
-        if historical_records.count() >= 5:
+        excess_records = historical_records.count()
+        if excess_records >= 5:
+            # Get the IDs of the excess records
             oldest_record = historical_records.order_by('history_date').first()
             if oldest_record:
                 oldest_record.delete()
+            # Delete the excess historical records
 
         super(Project, self).save(*args, **kwargs)
