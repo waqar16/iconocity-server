@@ -445,6 +445,9 @@ def fetch_icons(color_filter, style_filter, color_palette, iconography, brand_st
     response = requests.get(base_url, headers=headers, params=querystring)
     print(response)
     json_data = response.json()
+    
+    if response.status_code != 200:
+        return f_icons_list, result, "Something Wrong with the FreePik API"
     if response.status_code == 200:
         try:
             meta = json_data.get("meta")
@@ -478,155 +481,10 @@ def fetch_icons(color_filter, style_filter, color_palette, iconography, brand_st
     else:
         return f_icons_list, result, json_data['invalid_params'][0]['reason']
 
+
 def format_value(value):
     if value is None:
         return ""
     if value == "None":
         return ""
     return value
-
-
-# Extract and process the data into a user-friendly structure
-def extract_figma_summary(figma_response):
-    """Extract meaningful data such as artboards, layers, and icons from Figma response."""
-    artboards = []
-    layers = []
-    
-    # Process Figma's 'document' field to extract components, layers, or frames
-    if figma_response and "document" in figma_response:
-        for child in figma_response["document"]["children"]:
-            artboards.append({
-                "name": child.get("name", "Unnamed"),
-                "id": child.get("id", "Unknown"),
-                "type": child.get("type", "Unknown")
-            })
-            # Collect all children layers within artboards
-            for layer in child.get("children", []):
-                layers.append({
-                    "name": layer.get("name", "Unnamed"),
-                    "id": layer.get("id", "Unknown"),
-                    "type": layer.get("type", "Unknown")
-                })
-    
-    # Return summary data
-    return {
-        "artboards": artboards,
-        "layers": layers
-    }
-    
-    
-def extract_design_attributes(figma_response: dict) -> dict:
-    """
-    Extract design attributes from the provided Figma response JSON using an AI chain-based model.
-    Args:
-        figma_response (dict): The complete response from the Figma API.
-        
-    Returns:
-        dict: Dictionary of extracted design attributes.
-    """
-
-    # Define the prompt for parsing the design attributes
-    design_attributes_prompt = """
-    Analyze the provided Figma design response JSON to extract the following visual design attributes:
-    
-    1. **Color Palette**:
-        - Identify the primary, accent, and background colors from the design.
-        - Report only a single dominant primary color.
-        - Indicate the contrast type (e.g., high or low contrast).
-
-    2. **Iconography**:
-        - Indicate if icons are present in the design.
-        - Report their style (choose one: Flat, Outline, Filled).
-        - Report their relative size (choose one: Small, Medium, Large).
-        - Report their shape style (choose one: Rounded, Square, Freeform).
-
-    3. **Brand Style**:
-        - Determine the brand's overall style from the design (choose one: Corporate, Casual, Modern, Playful).
-        - If there are specific industry indicators, return the industry name (e.g., Technology, Healthcare).
-
-    4. **Imagery**:
-        - Report the type of imagery in the design (Illustrative, Photorealistic).
-        - Report the theme of the imagery (e.g., Technology, Abstract, Nature).
-
-    5. **Gradient Usage**:
-        - Check if there are any gradients in the design.
-        - If gradients exist, report their type and dominant color stop (Linear, Radial).
-        - If no gradients are detected, return "None".
-
-    6. **Shadow and Depth**:
-        - Detect if shadows are being used.
-        - Report the type of shadows (e.g., Drop shadows, Inner shadows, None).
-        - Determine if they give an elevated effect or flat effect.
-
-    7. **Line Thickness**:
-        - Report if the lines in the design are consistent or variable (choose one: Thick, Thin, Variable).
-
-    8. **Corner Rounding**:
-        - Identify if elements have rounded corners and the degree (choose one: Sharp corners, Slightly rounded, Fully rounded).
-
-    9. **Description**:
-        - Generate a concise description of the design using up to 10 nouns that best describe the design's content.
-
-    JSON Input Provided:
-    {figma_response}
-    
-    Output Format:
-    Provide the extracted attributes in the following JSON format:
-    {{
-        "color_palette": "blue",
-        "iconography": "Flat, Medium, Rounded",
-        "brand_style": "Corporate",
-        "gradient_usage": "Linear, Blue-Yellow",
-        "shadow_and_depth": "Drop shadows, Elevated",
-        "line_thickness": "Thin",
-        "corner_rounding": "Slightly rounded",
-        "imagery": "Illustrative, Technology",
-        "description": "boxing, gloves, club, website, training, excellence, athletes, sport, youth, sessions"
-    }}
-    Ensure responses are short and directly related to the design context.
-    """
-
-    # Chain model placeholder logic
-    @chain
-    def parse_figma_response(inputs: dict):
-        """
-        Send the prompt and the Figma response to the AI chain and process the output.
-        Args:
-            inputs (dict): Input dictionary containing Figma response and AI prompt.
-        Returns:
-            dict: AI's parsed response.
-        """
-        response = model.invoke(
-            [HumanMessage(
-                content=[
-                    {"type": "text", "text": inputs["prompt"]},
-                    {"type": "json", "json": inputs["figma_response"]}
-                ]
-            )]
-        )
-        
-        print("Model Response:")
-        print(response.content)  # Log AI response
-        return response.content
-
-    # Transform Chain for input processing
-    transform_figma_chain = TransformChain(
-        input_variables=["figma_response"],
-        output_variables=["response"],
-        transform=lambda x: {"figma_response": json.dumps(figma_response)}  # Ensure JSON is properly formatted
-    )
-
-    # Full AI response chain combining input + prompt
-    ai_chain = transform_figma_chain | parse_figma_response
-
-    # Call the AI chain
-    result = ai_chain.invoke({"figma_response": figma_response, "prompt": design_attributes_prompt})
-
-    # Convert the AI response string to JSON (error-safe)
-    try:
-        extracted_attributes = json.loads(result)
-    except json.JSONDecodeError:
-        extracted_attributes = {"error": "AI response could not be parsed"}
-    
-    # Return extracted attributes
-    return extracted_attributes

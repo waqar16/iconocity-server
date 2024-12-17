@@ -1,20 +1,51 @@
 from rest_framework import serializers
 from app.models import Project
 
+
 class ProjectSerializer(serializers.ModelSerializer):
     class Meta:
         model = Project
         exclude = ['created_at', 'updated_at']
+        
+    def create(self, validated_data):
+        user = validated_data.pop('user', None)
+        name = validated_data.get('name', None)
+
+        instance = super().create(validated_data)
+   
+        if name:
+            instance.name = name
+
+        if user:
+            instance.user = user
+            instance.save()
+        return instance
+
 
 class ProjectWithHistorySerializer(serializers.ModelSerializer):
     class Meta:
         model = Project
         exclude = ['created_at', 'updated_at']
+        
+    def create(self, validated_data):
+        user = validated_data.pop('user', None)
+        instance = super().create(validated_data)
+
+        if user:
+            instance.user = user
+            instance.save()
+
+        if not instance.name:
+            instance.save_with_historical_record(user=user)
+        return instance
 
     def save(self, **kwargs):
         # Get the instance if it exists
         instance = self.instance
-        instance.save_with_historical_record()
+        if not instance.name:
+            instance.save_with_historical_record(user=self.context.get('user'))
+        instance.save_with_historical_record(user=self.context.get('user'))
+
 
 class ProjectListSerializer(serializers.ModelSerializer):
     class Meta:

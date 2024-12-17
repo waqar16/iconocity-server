@@ -89,31 +89,6 @@ class ImageProcessView(APIView):
             if error:
                 return Response({"error": error}, status=status.HTTP_400_BAD_REQUEST)
 
-            # Generate keywords using the fast LLM with streaming enabled
-            keywords = []
-            try:
-                # Initialize the fast LLM model
-                fast_llm = ChatOpenAI(api_key=OPENAI_API_KEY, model="gpt-4", streaming=True)
-                
-                # Create a prompt for generating keywords based on the image description
-                prompt = HumanMessage(content=(
-                    f"Generate keywords based on these image characteristics: {description}. "
-                    f"Consider color palette: {color_palette}, style: {brand_style}, iconography: {iconography}, "
-                    f"gradient usage: {gradient_usage}, imagery style: {imagery}."
-                    f"Note: Only provide keywords, do not provide any other information."
-                ))
-                
-                # Request keywords and handle the response stream
-                response_stream = fast_llm.stream([prompt])
-                for message in response_stream:
-                    # Extract keywords from the message
-                    keywords.extend(message.content.split(", "))
-                
-            except Exception as e:
-                print("Error with ChatGPT API:", str(e))
-                
-            combined_response = ''.join(keywords)
-            keywords = [keyword.strip().title() for keyword in combined_response.split(',') if keyword.strip()]
             #Save data in Project Modal
             attributes = {
                 'color_palette': color_palette,
@@ -126,20 +101,15 @@ class ImageProcessView(APIView):
                 'corner_rounding': corner_rounding,
                 'description': description,
                 'query_by_llm': result,
-                'keywords': keywords
             }
             project_data = {
                 'attributes' : attributes,
                 'f_icons': f_icons_list,
-                'keywords': keywords
             }
 
             project_serializer_obj = ProjectSerializer(data=project_data)
             if project_serializer_obj.is_valid():
-                # print(project_serializer_obj)
-                instance = project_serializer_obj.save()
-                instance.user = request.user
-                instance.save()
+                project_serializer_obj.save(user=request.user)
                 return Response(project_serializer_obj.data, status=status.HTTP_200_OK)
             return Response(custom_error_message(project_serializer_obj.errors), status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
@@ -377,31 +347,7 @@ class FigmaLinkProcessAPI(APIView):
                                        description, icon_color_name, icon_style)
             if error:
                 return Response({"error": error}, status=status.HTTP_400_BAD_REQUEST)
-            # Generate keywords using the fast LLM with streaming enabled
-            keywords = []
-            try:
-                # Initialize the fast LLM model
-                fast_llm = ChatOpenAI(api_key=OPENAI_API_KEY, model="gpt-4", streaming=True)
-                
-                # Create a prompt for generating keywords based on the image description
-                prompt = HumanMessage(content=(
-                    f"Generate keywords based on these image characteristics: {description}. "
-                    f"Consider color palette: {color_palette}, style: {brand_style}, iconography: {iconography}, "
-                    f"gradient usage: {gradient_usage}, imagery style: {imagery}."
-                    f"Note: Only provide keywords, do not provide any other information."
-                ))
-                
-                # Request keywords and handle the response stream
-                response_stream = fast_llm.stream([prompt])
-                for message in response_stream:
-                    # Extract keywords from the message
-                    keywords.extend(message.content.split(", "))
-                
-            except Exception as e:
-                print("Error with ChatGPT API:", str(e))
-                
-            combined_response = ''.join(keywords)
-            keywords = [keyword.strip().title() for keyword in combined_response.split(',') if keyword.strip()]
+
             #Save data in Project Modal
             attributes = {
                 'color_palette': color_palette,
@@ -413,7 +359,6 @@ class FigmaLinkProcessAPI(APIView):
                 'line_thickness': line_thickness,
                 'corner_rounding': corner_rounding,
                 'query_by_llm': result,
-                'keywords': keywords,
                 'description': description
                 
             }
@@ -425,9 +370,7 @@ class FigmaLinkProcessAPI(APIView):
 
             project_serializer_obj = ProjectSerializer(data=project_data)
             if project_serializer_obj.is_valid():
-                instance = project_serializer_obj.save()
-                instance.user = request.user
-                instance.save()
+                project_serializer_obj.save(user=request.user)
             return Response(project_serializer_obj.data, status=status.HTTP_200_OK)
         except Exception as e:
             print(str(e))
@@ -595,34 +538,6 @@ class ImageLinkProcessAPI(APIView):
             if error:
                 return Response({"error": error}, status=status.HTTP_400_BAD_REQUEST)
 
-            # Generate keywords using the fast LLM with streaming enabled
-            keywords = []
-            try:
-                # Initialize the fast LLM model
-                fast_llm = ChatOpenAI(api_key=OPENAI_API_KEY, model="gpt-4", streaming=True)
-                
-                # Create a prompt for generating keywords based on the image description
-                prompt = HumanMessage(content=( 
-                    f"Generate keywords based on these image characteristics: {description}. "
-                    f"Consider color palette: {color_palette}, style: {brand_style}, iconography: {iconography}, "
-                    f"gradient usage: {gradient_usage}, imagery style: {imagery}."
-                    f"Respond with a list of keywords. for example: Tree, Modern, Deisgn, etc. Provide up to top 5 keywords."
-                ))
-                
-                # Request keywords and handle the response stream
-                response_stream = fast_llm.stream([prompt])
-                for message in response_stream:
-                    # Extract keywords from the message
-                    keywords.extend(message.content.split("\n"))
-                    
-            except Exception as e:
-                print("Error with ChatGPT API:", str(e))
-                
-            # Clean up the response and convert it into a list of valid keywords
-            keywords = [keyword.strip().title() for keyword in keywords if keyword.strip() and not keyword.strip().isdigit()]
-
-            # Optional: remove duplicates
-            keywords = list(set(keywords))
             # Prepare data to save in the Project model
             attributes = {
                 'color_palette': color_palette,
@@ -635,7 +550,6 @@ class ImageLinkProcessAPI(APIView):
                 'corner_rounding': corner_rounding,
                 'description': description,
                 'query_by_llm': result,
-                'keywords': keywords
                 
             }
             project_data = {
@@ -647,9 +561,7 @@ class ImageLinkProcessAPI(APIView):
             # Serialize and save project data
             project_serializer_obj = ProjectSerializer(data=project_data)
             if project_serializer_obj.is_valid():
-                instance = project_serializer_obj.save()
-                instance.user = request.user
-                instance.save()
+                project_serializer_obj.save(user=request.user)
             return Response(project_serializer_obj.data, status=status.HTTP_200_OK)
         except Exception as e:
             print(str(e))
