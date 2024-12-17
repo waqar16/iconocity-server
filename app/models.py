@@ -24,15 +24,16 @@ class Project(TimeStampedModel):
     def save(self, *args, **kwargs):
         print("without history")
         self.skip_history_when_saving = True
+
         if not self.name:
-            # Generate a unique name
             base_name = 'Untitled'
             count = 1
-            unique_name = base_name
+            unique_name = f'{base_name} {count}'
 
+            # Ensure the unique name is truly unique for the user
             while Project.objects.filter(name=unique_name, user=self.user).exists():
-                unique_name = f'{base_name} {count}'
                 count += 1
+                unique_name = f'{base_name} {count}'
 
             self.name = unique_name
 
