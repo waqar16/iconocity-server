@@ -7,19 +7,13 @@ class ProjectSerializer(serializers.ModelSerializer):
         model = Project
         exclude = ['created_at', 'updated_at']
         
-    def create(self, validated_data):
-        user = validated_data.pop('user', None)
-        name = validated_data.get('name', None)
-
-        instance = super().create(validated_data)
-   
-        if name:
-            instance.name = name
-
-        if user:
-            instance.user = user
-            instance.save()
-        return instance
+    # def create(self, validated_data):
+    #     user = validated_data.pop('user', None)
+    #     instance = super().create(validated_data)
+    #     if user:
+    #         instance.user = user
+    #         instance.save()
+    #     return instance
 
 
 class ProjectWithHistorySerializer(serializers.ModelSerializer):
@@ -27,24 +21,18 @@ class ProjectWithHistorySerializer(serializers.ModelSerializer):
         model = Project
         exclude = ['created_at', 'updated_at']
         
-    def create(self, validated_data):
-        user = validated_data.pop('user', None)
-        instance = super().create(validated_data)
-
-        if user:
-            instance.user = user
-            instance.save()
-
-        if not instance.name:
-            instance.save_with_historical_record(user=user)
-        return instance
+    # def create(self, validated_data):
+    #     user = validated_data.pop('user', None)
+    #     instance = super().create(validated_data)
+    #     if user:
+    #         instance.user = user
+    #         instance.save()
+    #     return instance
 
     def save(self, **kwargs):
         # Get the instance if it exists
         instance = self.instance
-        if not instance.name:
-            instance.save_with_historical_record(user=self.context.get('user'))
-        instance.save_with_historical_record(user=self.context.get('user'))
+        instance.save_with_historical_record()
 
 
 class ProjectListSerializer(serializers.ModelSerializer):

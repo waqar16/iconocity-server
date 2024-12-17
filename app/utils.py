@@ -479,7 +479,7 @@ def fetch_icons(color_filter, style_filter, color_palette, iconography, brand_st
                     })
         return f_icons_list, result, None
     else:
-        return f_icons_list, result, json_data['invalid_params'][0]['reason']
+        return f_icons_list, result, "Something Wrong with the FreePik API"
 
 
 def format_value(value):
