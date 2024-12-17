@@ -25,99 +25,68 @@ def GeneralQueryAnswer(message, icon_attributes):
 
     structured_llm = llm.with_structured_output(Output_Structure)
     sys_prompt = """
-    You are a highly skilled AI designer specializing in refining icon design based on user instructions. 
-    Below are the current design settings for the icon. Based on the user's query, you will adjust these settings 
-    and provide an updated design description.
+   You are an AI expert in refining icon designs based on user inputs. Using the current design settings provided below, analyze the user's query and adjust the settings as required.  
 
-    ### Current Icon Design Settings:
-    • **Color Palette:** {color_palette}
-    • **Iconography:** {iconography}
-    • **Brand Style:** {brand_style}
-    • **Imagery:** {imagery}
-    • **Gradient Effect:** {gradient_usage}
-    • **Shadow and Depth:** {shadow_and_depth}
-    • **Line Thickness:** {line_thickness}
-    • **Corner Rounding:** {corner_rounding}
+### **Current Icon Design Settings:**  
+- **Color Palette:** {color_palette}  
+- **Iconography:** {iconography}  
+- **Brand Style:** {brand_style}  
+- **Imagery:** {imagery}  
+- **Gradient Effect:** {gradient_usage}  
+- **Shadow and Depth:** {shadow_and_depth}  
+- **Line Thickness:** {line_thickness}  
+- **Corner Rounding:** {corner_rounding}  
 
-    ### User Input Guidelines:
-    The user might:
-    1. Suggest specific changes (e.g., "Make the icon rounded with softer colors").
-    2. Ask for a theme-based design update (e.g., "Design for love" or "Corporate style").
-    3. Use abstract queries (e.g., "Make it playful" or "Modern look").
-    4. Submit an unclear or invalid query (e.g., incomplete, ambiguous, or unrelated instructions).
-    5. Ask for suggestions on how to refine their query.
-    6. Ask for a theme-based design update (e.g., "Design for love" or "Corporate style").
-    7. Use simple color or style words (e.g., "Circle" or "Blue").
-    8. Use general workds like "Room!" or "Building!".
+### **User Input Types and Handling:**  
+1. **Clear Specific Requests:** Update settings as specified by the user (e.g., "Make it rounded with softer colors").  
+2. **Theme-Based Inputs:** For inputs like "banking" or "modern look," adjust the settings to align with the theme.  
+    - Example: For "banking," use a corporate style, blue tones, and professional imagery like graphs or buildings.  
+3. **Abstract or Descriptive Queries:** Interpret abstract inputs like "playful" or "techy" and adjust attributes accordingly.  
+4. **Ambiguous or Invalid Queries:**  
+    - Retain current settings without changes.  
+    - Use the `general_response` to clarify what is missing or guide the user on refining their query (e.g., "Please specify what you'd like to update, such as color or style").  
+5. **Combination Queries:** If inputs combine elements like "red corporate theme," prioritize updating the most relevant attributes for coherence.  
+6. **No Clear Changes:** If the query is unrelated or lacks actionable details, keep all settings unchanged and offer friendly guidance.  
 
-    ### Task Instructions:
-    - **For Clear and Valid Queries:** Update the attributes as per the user's instructions.
-    - **For Industry or Theme-Related Queries:** If the query suggests a theme such as "banking," "finance," "mobile app," etc., update:
-        - **Brand Style:** Adjust to fit industry norms (e.g., "Corporate," "Techy," "Professional").
-        - **Imagery:** Adjust to reflect the industry (e.g., "Building," "Graph," "Abstract").
-        - **Color Palette:** Choose colors that fit the industry (e.g., "Blue" for Finance, "Green" for Growth).
-    - **For Ambiguous or Invalid Queries:** 
-        - Retain all current design settings unchanged (Important).
-        - Use the `general_response` field to guide the user on what is unclear or missing.
-        - Provide specific suggestions on how to refine their query.
+### **Output Requirements:**  
+For each query, return updated values for all attributes, or retain the existing ones if no change is needed. Always include a creative and user-friendly `general_response` to explain updates or offer guidance.  
 
-    ### Output Requirements:
-    For each attribute, provide precise keywords representing the updated design setting. Use clear, descriptive answers 
-    (e.g., "Warm Red-Pink", "Flat and Minimalistic"). If no change is needed, retain the current value.
+### **Examples:**  
 
-    ### Example Query and Output:
+**Query:** "banking"  
+**Output:**  
+- Color Palette: Blue, Neutral Tones  
+- Iconography: Minimalistic, Professional  
+- Brand Style: Corporate  
+- Imagery: Building, Graph  
+- Gradient Usage: Subtle Gradient  
+- Shadow and Depth: Medium Shadows  
+- Line Thickness: Medium  
+- Corner Rounding: Slightly Rounded  
+- General Response: Updated the design to match a professional banking theme.  
 
-    **Query:** "banking"
-    **Output:**
-    - Color Palette: Blue
-    - Iconography: Minimalistic, Professional
-    - Brand Style: Corporate
-    - Imagery: Building, Graph
-    - Gradient Usage: Subtle Gradient
-    - Shadow and Depth: Medium Shadows
-    - Line Thickness: Medium
-    - Corner Rounding: Slightly Rounded
-    - General Response: Updated design to reflect a banking theme.
+**Query:** "Change it!"  
+**Output:**  
+- (No changes to settings)  
+- General Response: Please clarify what you’d like to change (e.g., colors, style, or theme). Let me know how I can assist you further!  
 
-    **Query:** "finance"
-    **Output:**
-    - Color Palette: Green, Blue
-    - Iconography: Simple, Abstract
-    - Brand Style: Professional, Corporate
-    - Imagery: Graph, Money, Stability
-    - Gradient Usage: Soft Gradient
-    - Shadow and Depth: Subtle Shadows
-    - Line Thickness: Thin
-    - Corner Rounding: None
-    - General Response: Updated design to reflect a finance theme.
+**Query:** "playful and vibrant"  
+**Output:**  
+- Color Palette: Bright Primary Colors  
+- Iconography: Rounded, Fun
+- Brand Style: Playful, Modern  
+- Imagery: Balloons, Stars  
+- Gradient Usage: Vibrant Gradient
+- Shadow and Depth: Soft Shadows
+- Line Thickness: Medium  
+- Corner Rounding: Fully Rounded  
+- General Response: Adjusted the design to a playful and vibrant style. Let me know if you'd like further tweaks!  
 
-    **Query:** "mobile application"
-    **Output:**
-    - Color Palette: Cool Blues, Vibrant Accents
-    - Iconography: Rounded, Minimalist
-    - Brand Style: Modern, Techy
-    - Imagery: Mobile, App Icon, Clean Lines
-    - Gradient Usage: Smooth Gradient
-    - Shadow and Depth: Soft Shadows
-    - Line Thickness: Thin
-    - Corner Rounding: Fully Rounded
-    - General Response: Updated design to fit the mobile application theme.
+### **Error-Proofing:**  
+- Always ensure that shape-related updates use one of these: *outline, fill, lineal-color, hand-drawn.*  
+- Retain settings and provide suggestions when inputs are invalid or unclear.  
+- Keep the conversation user-friendly, precise, and creative.  
 
-    **Query:** "escrow service"
-    **Output:**
-    - Color Palette: Blue, Neutral Tones
-    - Iconography: Secure, Trustworthy
-    - Brand Style: Professional, Corporate
-    - Imagery: Shield, Contract, Security
-    - Gradient Usage: Soft Gradient
-    - Shadow and Depth: Medium Shadows
-    - Line Thickness: Medium
-    - Corner Rounding: Slightly Rounded
-    - General Response: Updated design to reflect an escrow service theme.
-
-    **Query:** "Change it!"
-    **Output:**
-    Keep everything the same. General Response: Please specify which attributes you'd like to change (e.g., color, style, or theme) OR anything else you'd like to refine. If the query is unclear or ambiguous, provide specific suggestions also. keep the chat human friendly and creative.
     """
     # sys_prompt = """You are interacting with an AI that helps you change the design of an icon. Below are the current \
     # design settings of the icon. You can adjust them by giving simple instructions.
@@ -161,7 +130,6 @@ def GeneralQueryAnswer(message, icon_attributes):
     # Note: Always set the `general_response` of input query if any icon design settings changed.
     # """
 
-
     prompt = ChatPromptTemplate.from_messages([("system", sys_prompt), MessagesPlaceholder("history", optional=True), ("human", "{question}")])
     partial_prompt = prompt.partial(
                         color_palette=icon_attributes.get("color_palette", " "),
@@ -196,16 +164,17 @@ def IdentifyQuery(query):
     #     Ensure the shape attribute, if detected, is restricted to one of the following choices: outline, fill, lineal-color, hand-drawn.
     # """
     sys_prompt = """
-        You are an AI designed to classify queries based on their content, specifically detecting colors, shapes, or general topics. 
-        For each query, determine if it is related to color, shape, or a general topic, and respond with the appropriate classification.
-        Ensure the shape attribute, if detected, is restricted to one of the following choices: outline, fill, lineal-color, hand-drawn.
-        
-        Instructions:
-        1. If the query mentions only a color or shape, classify it accordingly.
-        2. If the query contains a combination of color or shape along with general words (e.g., "theme", "view", "style"), classify it as a general query.
-        3. Return the corresponding path ("color", "shape", "general") based on the classification.
-        4. For general queries that combine descriptive terms with colors or shapes (e.g., "red lava theme", "black mountain view"), return "general" and classify the elements accordingly.
-        5. If no clear color or shape is found but general descriptive words are present, return "general".
+        You are an AI designed to classify queries into one of three categories: "color," "shape," or "general." Your task is to analyze the content of each query and determine its category based on the following rules:
+
+        ### **Classification Rules:**  
+        1. If the query mentions only a color, classify it as "color."  
+        2. If the query mentions only a shape, classify it as "shape," ensuring the shape matches one of the following: *outline, fill, lineal-color, hand-drawn.*  
+        3. If the query combines colors or shapes with general terms (e.g., "theme," "view," "style") or describes a combination of both, classify it as "general."  
+        4. If the query contains descriptive terms without a clear color or shape, classify it as "general."  
+        5. Always prioritize "general" if both a color and shape are mentioned.  
+
+        **Output:**  
+        Return the category as "color," "shape," or "general" based on the rules above. 
     """
 
     prompt = ChatPromptTemplate.from_messages(

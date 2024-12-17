@@ -6,10 +6,10 @@ import zipfile
 from io import BytesIO
 from PIL import Image
 
-from rest_framework.permissions import IsAuthenticated, AllowAny
+from rest_framework.permissions import IsAuthenticated
 
 from app.utils import process_image_data, custom_error_message, Color_Available_in_Filter, fetch_icons, format_value, \
-    process_available_color_for_filter, find_closest_color
+    find_closest_color
 from app.serializers import ProjectSerializer, ProjectListSerializer, ProjectIconListSerializer, ProjectHistorySerializer, IconSerializer
 import re
 import requests
@@ -22,7 +22,6 @@ from app.models import Project
 from auth_app.token_auth import CustomTokenAuthentication
 import webcolors
 from langchain.schema import HumanMessage
-import uuid
 
 
 OPENAI_API_KEY = settings.OPENAI_API_KEY
@@ -89,31 +88,6 @@ class ImageProcessView(APIView):
             if error:
                 return Response({"error": error}, status=status.HTTP_400_BAD_REQUEST)
 
-            # Generate keywords using the fast LLM with streaming enabled
-            keywords = []
-            try:
-                # Initialize the fast LLM model
-                fast_llm = ChatOpenAI(api_key=OPENAI_API_KEY, model="gpt-4", streaming=True)
-                
-                # Create a prompt for generating keywords based on the image description
-                prompt = HumanMessage(content=(
-                    f"Generate keywords based on these image characteristics: {description}. "
-                    f"Consider color palette: {color_palette}, style: {brand_style}, iconography: {iconography}, "
-                    f"gradient usage: {gradient_usage}, imagery style: {imagery}."
-                    f"Note: Only provide keywords, do not provide any other information."
-                ))
-                
-                # Request keywords and handle the response stream
-                response_stream = fast_llm.stream([prompt])
-                for message in response_stream:
-                    # Extract keywords from the message
-                    keywords.extend(message.content.split(", "))
-                
-            except Exception as e:
-                print("Error with ChatGPT API:", str(e))
-                
-            combined_response = ''.join(keywords)
-            keywords = [keyword.strip().title() for keyword in combined_response.split(',') if keyword.strip()]
             #Save data in Project Modal
             attributes = {
                 'color_palette': color_palette,
@@ -126,12 +100,10 @@ class ImageProcessView(APIView):
                 'corner_rounding': corner_rounding,
                 'description': description,
                 'query_by_llm': result,
-                'keywords': keywords
             }
             project_data = {
-                'attributes' : attributes,
+                'attributes': attributes,
                 'f_icons': f_icons_list,
-                'keywords': keywords
             }
 
             project_serializer_obj = ProjectSerializer(data=project_data)
@@ -264,7 +236,7 @@ class DownloadIconsZip(APIView):
 class FigmaLinkProcessAPI(APIView):
     authentication_classes = [CustomTokenAuthentication]
     # permission_classes = [IsAuthenticated]
-    permission_classes = [AllowAny]
+    permission_classes = [IsAuthenticated]
 
     def post(self, request, *args, **kwargs):
         try:
@@ -377,31 +349,7 @@ class FigmaLinkProcessAPI(APIView):
                                        description, icon_color_name, icon_style)
             if error:
                 return Response({"error": error}, status=status.HTTP_400_BAD_REQUEST)
-            # Generate keywords using the fast LLM with streaming enabled
-            keywords = []
-            try:
-                # Initialize the fast LLM model
-                fast_llm = ChatOpenAI(api_key=OPENAI_API_KEY, model="gpt-4", streaming=True)
-                
-                # Create a prompt for generating keywords based on the image description
-                prompt = HumanMessage(content=(
-                    f"Generate keywords based on these image characteristics: {description}. "
-                    f"Consider color palette: {color_palette}, style: {brand_style}, iconography: {iconography}, "
-                    f"gradient usage: {gradient_usage}, imagery style: {imagery}."
-                    f"Note: Only provide keywords, do not provide any other information."
-                ))
-                
-                # Request keywords and handle the response stream
-                response_stream = fast_llm.stream([prompt])
-                for message in response_stream:
-                    # Extract keywords from the message
-                    keywords.extend(message.content.split(", "))
-                
-            except Exception as e:
-                print("Error with ChatGPT API:", str(e))
-                
-            combined_response = ''.join(keywords)
-            keywords = [keyword.strip().title() for keyword in combined_response.split(',') if keyword.strip()]
+
             #Save data in Project Modal
             attributes = {
                 'color_palette': color_palette,
@@ -413,7 +361,6 @@ class FigmaLinkProcessAPI(APIView):
                 'line_thickness': line_thickness,
                 'corner_rounding': corner_rounding,
                 'query_by_llm': result,
-                'keywords': keywords,
                 'description': description
                 
             }
@@ -439,7 +386,7 @@ class ExchangeFigmaCodeForTokenView(APIView):
     Endpoint to securely exchange the authorization code for an access token with Figma.
     """
 
-    permission_classes = [AllowAny]
+    permission_classes = [IsAuthenticated]
 
     def post(self, request, *args, **kwargs):
         """
@@ -505,7 +452,7 @@ class ExchangeFigmaCodeForTokenView(APIView):
 
 class ImageLinkProcessAPI(APIView):
     authentication_classes = [CustomTokenAuthentication]
-    permission_classes = [AllowAny]
+    permission_classes = [IsAuthenticated]
 
     def post(self, request, *args, **kwargs):
         try:
@@ -595,34 +542,7 @@ class ImageLinkProcessAPI(APIView):
             if error:
                 return Response({"error": error}, status=status.HTTP_400_BAD_REQUEST)
 
-            # Generate keywords using the fast LLM with streaming enabled
-            keywords = []
-            try:
-                # Initialize the fast LLM model
-                fast_llm = ChatOpenAI(api_key=OPENAI_API_KEY, model="gpt-4", streaming=True)
-                
-                # Create a prompt for generating keywords based on the image description
-                prompt = HumanMessage(content=( 
-                    f"Generate keywords based on these image characteristics: {description}. "
-                    f"Consider color palette: {color_palette}, style: {brand_style}, iconography: {iconography}, "
-                    f"gradient usage: {gradient_usage}, imagery style: {imagery}."
-                    f"Respond with a list of keywords. for example: Tree, Modern, Deisgn, etc. Provide up to top 5 keywords."
-                ))
-                
-                # Request keywords and handle the response stream
-                response_stream = fast_llm.stream([prompt])
-                for message in response_stream:
-                    # Extract keywords from the message
-                    keywords.extend(message.content.split("\n"))
-                    
-            except Exception as e:
-                print("Error with ChatGPT API:", str(e))
-                
-            # Clean up the response and convert it into a list of valid keywords
-            keywords = [keyword.strip().title() for keyword in keywords if keyword.strip() and not keyword.strip().isdigit()]
 
-            # Optional: remove duplicates
-            keywords = list(set(keywords))
             # Prepare data to save in the Project model
             attributes = {
                 'color_palette': color_palette,
@@ -635,7 +555,6 @@ class ImageLinkProcessAPI(APIView):
                 'corner_rounding': corner_rounding,
                 'description': description,
                 'query_by_llm': result,
-                'keywords': keywords
                 
             }
             project_data = {
@@ -725,7 +644,7 @@ class SimilarIconSearchAPI(APIView):
 
 
 class GenerateIconVariationsAPIView(APIView):
-    permission_classes = [AllowAny]
+    permission_classes = [IsAuthenticated]
 
     def post(self, request, *args, **kwargs):
         try:

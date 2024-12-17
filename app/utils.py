@@ -251,7 +251,8 @@ def find_closest_color(input_color: str) -> tuple:
             f"Given the input color '{input_color}', find the most similar color from this list: "
             f"{', '.join(AVAILABLE_COLORS)}. "
             f"Respond with the color that is most similar to '{input_color}' from the list. "
-            f"Only provide one color from the list as the response."
+            f"Only provide one color from the {len(AVAILABLE_COLORS)} options of {AVAILABLE_COLORS}."
+            f"These are the examples: If the input color is 'golden', the response should be 'yellow'. and so on."
         ))
 
         response_stream = fast_llm.stream([prompt])
@@ -260,8 +261,6 @@ def find_closest_color(input_color: str) -> tuple:
         for message in response_stream:
             response_content = message.content.strip()
             if response_content:  # Only process non-empty responses
-                print(f"Matched color from LLM: {response_content}")  # Debugging
-
                 # Validate the matched color
                 if response_content in AVAILABLE_COLORS:
                     matched_color = response_content
@@ -409,12 +408,12 @@ def fetch_icons(color_filter, style_filter, color_palette, iconography, brand_st
     else:
         # Fallback to color_palette
         color = format_value(color_palette)
-        if color:
+        if color.lower() not in AVAILABLE_COLORS:
             matched_color = find_closest_color(color)
             print("Matched color from color_palette:", matched_color[1])
             color_filter_value = matched_color[1]
         else:
-            color_filter_value = None  # No valid color to filter by
+            color_filter_value = color
     
     color_filter_value = format_value(color_filter_value)
     print("color_filter_value-->", color_filter_value)
@@ -424,7 +423,7 @@ def fetch_icons(color_filter, style_filter, color_palette, iconography, brand_st
         f"{color_filter_value} {iconography} {brand_style} {gradient_usage} {imagery} {shadow_and_depth} "
         f"{line_thickness} {corner_rounding}"
     )
-    print("Result of process_icons_query-->", result)
+    # print("Result of process_icons_query-->", result)
 
     if color_filter and style_filter:
         querystring = {"term": description, "slug": imagery, "thumbnail_size": "256", "per_page": "100", "page": "1",

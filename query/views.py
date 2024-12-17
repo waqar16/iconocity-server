@@ -55,6 +55,10 @@ class UpdateIconAttributesByQuery(APIView):
                     return Response({'error': 'General query processing failed'}, status=400)
                 print(f"Actual response from LLM: {actual_response}")
                 general_response = actual_response.general_response
+                # icon_style = actual_response.shape if actual_response.shape else None
+                # if icon_style:
+                #     isRelatedShape = True
+                # icon_color_name = actual_response.color if actual_response.color else None
                 attributes['color_palette'] = format_value(actual_response.color_palette)
                 attributes['iconography'] = format_value(actual_response.iconography)
                 attributes['brand_style'] = format_value(actual_response.brand_style)
