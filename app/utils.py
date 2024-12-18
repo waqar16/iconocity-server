@@ -252,7 +252,7 @@ def find_closest_color(input_color: str) -> tuple:
             f"{', '.join(AVAILABLE_COLORS)}. "
             f"Respond with the color that is most similar to '{input_color}' from the list. "
             f"Only provide one color from the {len(AVAILABLE_COLORS)} options of {AVAILABLE_COLORS}."
-            f"These are the examples: If the input color is 'golden', the response should be 'yellow'. and so on."
+            f"These are the examples: If the input color is 'golden', the response should be 'yellow', 'pink' -> 'rose', purple -> 'violet'. and so on."
         ))
 
         response_stream = fast_llm.stream([prompt])
@@ -401,8 +401,11 @@ def fetch_icons(color_filter, style_filter, color_palette, iconography, brand_st
         "x-freepik-api-key": settings.FREE_PICK_API_KEY
     }
     
+    # if not color_filter and not style_filter:
+    #     description = format_value(imagery)
+
     # Process icon color name if provided
-    if icon_color_name:
+    if icon_color_name or not "None":
         color_filter_value = icon_color_name
         print("Using provided icon_color_name:", color_filter_value)
     else:
@@ -424,18 +427,20 @@ def fetch_icons(color_filter, style_filter, color_palette, iconography, brand_st
         f"{line_thickness} {corner_rounding}"
     )
     # print("Result of process_icons_query-->", result)
+    
+    description_terms = " ".join(description.split(",")[0:4])
 
     if color_filter and style_filter:
-        querystring = {"term": description, "slug": imagery, "thumbnail_size": "256", "per_page": "100", "page": "1",
+        querystring = {"term": f"{description_terms} {color_filter_value if color_filter_value else ''} {icon_style if icon_style else ''}, {imagery}", "thumbnail_size": "256", "per_page": "100", "page": "1",
                        "filters[color]": color_filter_value.lower(), "filters[shape]": icon_style}
     elif color_filter:
-        querystring = {"term": description, "slug": imagery, "thumbnail_size": "256", "per_page": "100", "page": "1",
+        querystring = {"term": f"{description_terms} {color_filter_value if color_filter_value else ''} {icon_style if icon_style else ''}, {imagery}", "thumbnail_size": "256", "per_page": "100", "page": "1",
                        "filters[color]": color_filter_value.lower()}
     elif style_filter:
-        querystring = {"term": description, "slug": imagery, "thumbnail_size": "256", "per_page": "100", "page": "1",
+        querystring = {"term": f"{description_terms} , {color_filter_value if color_filter_value else ''} , {icon_style if icon_style else ''}, {imagery}", "thumbnail_size": "256", "per_page": "100", "page": "1",
                        "filters[shape]": icon_style, "filters[color]": color_filter_value.lower()}
     else:
-        querystring = {"term": description, "slug": imagery, "thumbnail_size": "256", "per_page": "100", "page": "1",
+        querystring = {"term": f"{description_terms} {color_filter_value if color_filter_value else ''} {icon_style if icon_style else ''}, {imagery}", "thumbnail_size": "256", "per_page": "100", "page": "1",
                        "filters[color]": color_filter_value.lower()}
 
     querystring['order'] = 'relevance'

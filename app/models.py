@@ -24,21 +24,22 @@ class Project(TimeStampedModel):
     def save(self, *args, **kwargs):
         print("without history")
         self.skip_history_when_saving = True
+
+        # Generate a unique name
+        base_name = 'Untitled'
+        count = 1
+        unique_name = base_name
+
         if not self.name:
-            # Generate a unique name
-            base_name = 'Untitled'
-            count = 1
-            unique_name = base_name
+            # Ensure user is not None before checking uniqueness
+            if self.user:
+                while Project.objects.filter(name=unique_name, user=self.user).exists():
+                    unique_name = f'{base_name} {count}'
+                    count += 1
 
-        # Ensure user is not None before checking uniqueness
-        if self.user:
-            while Project.objects.filter(name=unique_name, user=self.user).exists():
-                unique_name = f'{base_name} {count}'
-                count += 1
+                self.name = unique_name
 
-            self.name = unique_name
-
-        #limit Records to Five
+        # limit Records to Five
         if Project.objects.filter(user=self.user).count() >= 5:
             oldest_project = Project.objects.filter(user=self.user).order_by('created_at').first()
             if oldest_project:
@@ -52,7 +53,7 @@ class Project(TimeStampedModel):
             self.name = f'Untitled{count}'
 
         print("with history")
-        #limit Records to Five
+        #  limit Records to Five
         if Project.objects.filter(user=self.user).count() >= 5:
             oldest_project = Project.objects.filter(user=self.user).order_by('created_at').first()  # or 'created_at' if you have a timestamp
             if oldest_project:

@@ -53,6 +53,10 @@ class UpdateIconAttributesByQuery(APIView):
                 actual_response = GeneralQueryAnswer(query, project_attributes)
                 if not actual_response:
                     return Response({'error': 'General query processing failed'}, status=400)
+                
+                if actual_response.style:
+                    isRelatedShape = True
+                    icon_style = actual_response.style
                 print(f"Actual response from LLM: {actual_response}")
                 general_response = actual_response.general_response
                 # icon_style = actual_response.shape if actual_response.shape else None
@@ -67,29 +71,29 @@ class UpdateIconAttributesByQuery(APIView):
                 attributes['shadow_and_depth'] = format_value(actual_response.shadow_and_depth)
                 attributes['line_thickness'] = format_value(actual_response.line_thickness)
                 attributes['corner_rounding'] = format_value(actual_response.corner_rounding)
-                attributes['description'] = project_attributes['description']
-            else:
-                attributes = project_attributes
+                attributes['description'] = actual_response.description
+                # attributes = project_attributes
 
             if response.path == 'color':
                 isRelatedColor = True
                 actual_response = changeIconColorAndShapeQueryBot(query)
                 print("actual_response for color-->", actual_response)
-                icon_color_name = actual_response.color if actual_response.color else None
+                icon_color_name = actual_response.color if actual_response.color else ""
                 attributes['color_palette'] = response.color
                 general_response = actual_response.general_response
+                attributes = project_attributes
                 icon_style = None               
 
             if response.path == 'shape':
                 isRelatedShape = True
                 actual_response = changeIconColorAndShapeQueryBot(query)
                 print("actual_response for shape-->", actual_response)
-                icon_style = actual_response.shape if actual_response.shape else None
+                icon_style = actual_response.shape if actual_response.shape else ""
                 general_response = actual_response.general_response
+                attributes = project_attributes
                 icon_color_name = None
-            
+
             print("after attributes-->", attributes)
-            attributes["description"] = attributes["imagery"]
             f_icons_list, result, error = fetch_icons(
                 isRelatedColor, isRelatedShape, attributes["color_palette"],
                 attributes["iconography"], attributes["brand_style"] , attributes["gradient_usage"],
