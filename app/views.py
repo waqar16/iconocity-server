@@ -774,12 +774,14 @@ class GetProjectHistoryListApi(APIView):
         history = project_obj.history.all()
         serializer = ProjectHistorySerializer(history, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
+    
 
 class GetHistoryByHistoryIdApi(APIView):
     authentication_classes = [CustomTokenAuthentication]
     permission_classes = [IsAuthenticated]
 
     def post(self, request, *args, **kwargs):
+        
         history_id = request.data.get('history_id')
         page = request.data.get('page')
         page_size = request.data.get('page_size')
@@ -803,8 +805,29 @@ class GetHistoryByHistoryIdApi(APIView):
             return Response(response_data, status=status.HTTP_200_OK)
         except Project.history.model.DoesNotExist:
             return Response([], status=status.HTTP_200_OK)
-
-
-
-
+        
+    def delete(self, request, *args, **kwargs):
+        history_id = request.data.get('history_id')
+        if not history_id:
+            return Response({"error": "History ID is required"}, status.HTTP_400_BAD_REQUEST)
+        try:
+            history_obj = Project.history.get(pk=history_id)
+            history_obj.delete()
+            return Response({"data": "History Deleted Successfully"}, status=status.HTTP_200_OK)
+        except Project.history.model.DoesNotExist:
+            return Response({"error": "History does not exist"}, status=status.HTTP_400_BAD_REQUEST)
+        
+    #to rename history name
+    def put(self, request, *args, **kwargs):
+        history_id = request.data.get('history_id')
+        history_name = request.data.get('history_name')
+        if not history_id:
+            return Response({"error": "History ID is required"}, status.HTTP_400_BAD_REQUEST)
+        try:
+            history_obj = Project.history.get(pk=history_id)
+            history_obj.name = history_name
+            history_obj.save()
+            return Response({"data": "History Renamed Successfully"}, status=status.HTTP_200_OK)
+        except Project.history.model.DoesNotExist:
+            return Response({"error": "History does not exist"}, status=status.HTTP_400_BAD_REQUEST)
 
