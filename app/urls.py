@@ -13,7 +13,8 @@ from app.views import (
     SimilarIconSearchAPI,
     DownloadIconsZip,
     GenerateIconVariationsAPIView,
-    ExchangeFigmaCodeForTokenView
+    ExchangeFigmaCodeForTokenView,
+    DownloadSingleFreepikIconView
 )
 
 urlpatterns = [
@@ -24,6 +25,7 @@ urlpatterns = [
     path('downloadImage', ImageDownloadView.as_view(), name='download_image'),
     path('downloadFreePik', DownloadFreePikView.as_view(), name='download_fpk'),
     path('downloadIcons', DownloadIconsZip.as_view(), name='download_icons'),
+    path('downloadSingleIcon', DownloadSingleFreepikIconView.as_view(), name='download_single_icon'),
     path('getProjectList', GetProjectListApi.as_view(), name='get_project_list'),
     path('getProjectIconList/', GetProjectIconListApi.as_view(), name='get_project_icon'),
     path('changeProjectName/', ChangeProjectName.as_view(), name='change_project_name'),
@@ -31,5 +33,4 @@ urlpatterns = [
     path('getHistoryByHistoryId/', GetHistoryByHistoryIdApi.as_view(), name='get_history_by_history_id'),
     path('generateIconVariations/', GenerateIconVariationsAPIView.as_view(), name='generate_icon_variations'),
     path('exchangeFigmaCodeForToken/', ExchangeFigmaCodeForTokenView.as_view(), name='exchange_figma_code_for_token'),
-
 ]

@@ -30,75 +30,132 @@ parser = JsonOutputParser(pydantic_object=ImageInformation)
 
 
 def process_image_data(image_base64: str):
-    vision_prompt = """Instruction:
-    Analyze the design to extract specific visual attributes. 
-    Review the design carefully and identify the following 
-    attributes:
+    # vision_prompt = """Instruction:
+    # Analyze the design to extract specific visual attributes. 
+    # Review the design carefully and identify the following 
+    # attributes:
     
-    1.Color Palette:
+    # 1.Color Palette:
+    # • Identify the color used in the design.
+    # • Determine the accent color that complements the primary palette.
+    # • Note the background color.
+    # • Assess the contrast level (high contrast vs. low contrast).
+    # • Get Major color only, and it should be only one color name
+
+    # 2. Iconography:
+    # • Check if the design includes any icons.
+    # • Identify the style of the icons (choose one: Flat, Outline, Filled).
+    # • Observe the relative size of the icons (choose one: Small, Medium, Large).
+    # • Describe the shape of the icons (choose one: Rounded, Square, Freeform).
+
+    # 3.Brand Style:
+    # • Determine the overall style and tone of the design.
+    #     Categorize it as one of the following:
+    #     • Corporate: Formal, professional, typically used for business or financial services.
+    #     • Casual: Friendly, relaxed, often seen in lifestyle or personal brand designs.
+    #     • Modern: Minimalistic, clean, often characterized by simplicity and elegance.
+    #     • Playful: Vibrant, fun, colorful, often used for children’s products or entertainment brands.
+    #     If the design represents a specific industry (e.g., healthcare, technology, education), specify that \
+    #     industry as the brand style** (e.g., "Healthcare," "Technology," "Education"). Identify the industry based \
+    #     on any specific visual cues, symbols, or elements related to that field (e.g., stethoscopes for healthcare, \
+    #     computers for technology).
+
+
+    # 4. Imagery:
+    # • Note the style of imagery used (choose one: Illustrative, Photorealistic).
+    # • Identify the theme of the imagery (choose one: Nature, Technology, Abstract).
+
+    # 5. Gradient Usage:
+    # • Detect the presence of gradients in the design.
+    # • If gradients are present, identify the direction (choose one: Linear, Radial) and the dominant gradient color stop.
+    # • If no gradients are present, label this as "None".
+
+    # 6. Shadow and Depth:
+    # • Check for the use of shadows (choose one: Drop shadows, Inner shadows, None).
+    # • Determine the depth effect created by these shadows (choose one: Flat, Elevated).
+
+    # 7. Line Thickness:
+    # • Assess the consistency of line weight throughout the design (choose one: Thick, Thin, Variable).
+
+    # 8. Corner Rounding:
+    # •  Identify the degree of corner rounding in shapes (choose one: Sharp corners, Slightly rounded, Fully rounded).
+
+    # 9. Description:
+    # •  Description should contain up to 10 nouns  that best describe the content. Rank the nouns for description according to how well they describe the picture. Give description as single string with list of up to 10 nouns separated by comma, without numbering and new line. Ensure the nouns cover both direct and related concepts to capture a wide variety of possible icons.
+
+    
+    # Output:
+    # • For each of the above attributes, populate the results as a single keyword representing the attribute detected. \
+    # Avoid using non-descriptive answers like "Yes" or "No"; instead, specify relevant details or use "None" where \
+    # applicable.
+    # Example Output:
+    #     • Color Palette: Blue, Yellow, White, Gradient, Rainbow
+    #     • Iconography: Flat, Medium, Rounded
+    #     • Brand Style: Corporate
+    #     • Imagery: Illustrative, Technology
+    #     • Gradient Usage: Linear, Blue-Yellow
+    #     • Shadow and Depth: Drop shadows, Elevated
+    #     • Line Thickness: Thin
+    #     • Corner Rounding: Slightly rounded
+    #     • Description: boxing, gloves, club, website, training, excellence, athletes, sport, youth, sessions"""
+
+    vision_prompt = """Instruction:
+    Analyze the Figma design to extract detailed visual and contextual attributes. 
+    Review the design carefully and identify the following elements:
+
+    1. **Color Palette**:
     • Identify the primary color used in the design.
     • Determine the accent color that complements the primary palette.
     • Note the background color.
-    • Assess the contrast level (high contrast vs. low contrast).
-    • Get Major color only, and it should be only one color name
-    
-    2. Iconography:
-    • Check if the design includes any icons.
-    • Identify the style of the icons (choose one: Flat, Outline, Filled).
-    • Observe the relative size of the icons (choose one: Small, Medium, Large).
+    • Assess the contrast level (e.g., high contrast, low contrast).
+    • Provide only one major color.
+
+    2. **Iconography**:
+    • Identify if the design includes any icons.
+    • Describe the style of the icons (choose one: Flat, Outline, Filled).
+    • Specify the relative size of the icons (choose one: Small, Medium, Large).
     • Describe the shape of the icons (choose one: Rounded, Square, Freeform).
-        
-    3.Brand Style:
-    • Determine the overall style and tone of the design.
-        Categorize it as one of the following:
-        • Corporate: Formal, professional, typically used for business or financial services.
-        • Casual: Friendly, relaxed, often seen in lifestyle or personal brand designs.
-        • Modern: Minimalistic, clean, often characterized by simplicity and elegance.
-        • Playful: Vibrant, fun, colorful, often used for children’s products or entertainment brands.
-        If the design represents a specific industry (e.g., healthcare, technology, education), specify that \
-        industry as the brand style** (e.g., "Healthcare," "Technology," "Education"). Identify the industry based \
-        on any specific visual cues, symbols, or elements related to that field (e.g., stethoscopes for healthcare, \
-        computers for technology).
 
+    3. **Brand Style**:
+    • Define the overall style and tone of the design. Categorize it as one of the following:
+        • Corporate: Formal, professional, business-oriented.
+        • Casual: Relaxed, friendly, lifestyle-oriented.
+        • Modern: Minimalistic, clean, simple.
+        • Playful: Fun, colorful, energetic.
+    • If the design belongs to a specific industry (e.g., healthcare, technology), specify the industry based on any related symbols or elements (e.g., stethoscopes for healthcare, computers for technology).
 
-    4. Imagery:
-    • Note the style of imagery used (choose one: Illustrative, Photorealistic).
-    • Identify the theme of the imagery (choose one: Nature, Technology, Abstract).
-    
-    5. Gradient Usage:
+    4. **Imagery**:
+    • Identify the style of imagery used (choose one: Illustrative, Photorealistic).
+    • Determine the theme of the imagery (choose one: Nature, Technology, Abstract, etc.).
+
+    5. **Gradient Usage**:
     • Detect the presence of gradients in the design.
-    • If gradients are present, identify the direction (choose one: Linear, Radial) and the dominant gradient color stop.
-    • If no gradients are present, label this as "None".
-    
-    6. Shadow and Depth:
-    • Check for the use of shadows (choose one: Drop shadows, Inner shadows, None).
-    • Determine the depth effect created by these shadows (choose one: Flat, Elevated).
+    • If gradients are used, specify the direction (Linear, Radial) and the dominant gradient color.
+    • If no gradients are present, label as "None".
 
-    7. Line Thickness:
-    • Assess the consistency of line weight throughout the design (choose one: Thick, Thin, Variable).
+    6. **Shadow and Depth**:
+    • Determine the use of shadows (choose one: Drop shadows, Inner shadows, None).
+    • Specify the depth effect (choose one: Flat, Elevated).
 
-    8. Corner Rounding:
-    •  Identify the degree of corner rounding in shapes (choose one: Sharp corners, Slightly rounded, Fully rounded).
+    7. **Line Thickness**:
+    • Assess the consistency of line thickness throughout the design (choose one: Thick, Thin, Variable).
 
-    9. Description:
-    •  Description should contain up to 10 nouns that best describe the content. Rank the nouns for description according to how well they describe the picture. Give description as single string with list of up to 10 nouns separated by comma, without numbering and new line.
+    8. **Corner Rounding**:
+    • Identify the degree of corner rounding (choose one: Sharp, Slightly Rounded, Fully Rounded).
 
-    
+    9. **Description**:
+    • Generate up to 10 nouns that best describe the content of the design, focusing on both direct and related concepts. 
+    • Ensure the keywords cover a variety of related aspects to ensure diversity in the icons that will be generated. Example: If the design is for a fitness app, keywords might include: "dumbbell," "progress," "stamina," "hydration," "goal tracking," etc.
+    • The comma seprated string of keywords should be ranked according to how well they describe the image, including broader categories like use cases or actions.
+    • Example: "fitness, health, tracking, progress, goals, workout, exercise, gym, wellness, lifestyle"
+
+    10. **Contextual Understanding**:
+    • Consider the context of the design (e.g., is it for a fitness app, medical app, or social network?).
+    • Identify specific functionality that might require a variety of icons, such as icons for tracking, navigation, or social interactions. This will help ensure that icons are not just representative but also fit the intended use case.
+
     Output:
-    • For each of the above attributes, populate the results as a single keyword representing the attribute detected. \
-    Avoid using non-descriptive answers like "Yes" or "No"; instead, specify relevant details or use "None" where \
-    applicable.
-    Example Output:
-        • Color Palette: Blue, Yellow, White, High Contrast
-        • Iconography: Flat, Medium, Rounded
-        • Brand Style: Corporate
-        • Imagery: Illustrative, Technology
-        • Gradient Usage: Linear, Blue-Yellow
-        • Shadow and Depth: Drop shadows, Elevated
-        • Line Thickness: Thin
-        • Corner Rounding: Slightly rounded
-        • Description: boxing, gloves, club, website, training, excellence, athletes, sport, youth, sessions"""
-
+    For each of the above attributes, provide specific, relevant details. Avoid vague or non-descriptive answers. The results should reflect diverse and varied aspects of the design, with keywords and icon categories aligned with the design’s context and intended use.
+    """
     # chain decorator to make it runnable
     @chain
     def image_model(inputs: dict):
@@ -221,10 +278,7 @@ def process_available_color_for_filter(color: str):
     except ValidationError as e:
         # Handle unexpected errors gracefully
         return "gray"  # Default fallback to a valid color
-    
-   
-   
-   
+
 
 # Initialize the fast LLM model
 fast_llm = ChatOpenAI(api_key=settings.OPENAI_API_KEY, model="gpt-4", streaming=True)
@@ -300,6 +354,7 @@ def find_closest_color_fallback(input_color: str) -> str:
         # Fallback to the first available color in case of error
         return AVAILABLE_COLORS[0]
 
+
 # Example of Levenshtein distance function for closest match (if needed)
 def levenshtein(s1, s2):
     """Compute the Levenshtein distance between two strings."""
@@ -318,7 +373,6 @@ def levenshtein(s1, s2):
         previous_row = current_row
     return previous_row[-1]
 
-    
     
 # def process_available_color_for_filter(color: str):
 #     class ResponseStructure(BaseModel):
@@ -400,7 +454,7 @@ def fetch_icons(color_filter, style_filter, color_palette, iconography, brand_st
     headers = {
         "x-freepik-api-key": settings.FREE_PICK_API_KEY
     }
-    
+
     # if not color_filter and not style_filter:
     #     description = format_value(imagery)
 
@@ -417,7 +471,7 @@ def fetch_icons(color_filter, style_filter, color_palette, iconography, brand_st
             color_filter_value = matched_color[1]
         else:
             color_filter_value = color
-    
+
     color_filter_value = format_value(color_filter_value)
     print("color_filter_value-->", color_filter_value)
 
@@ -427,36 +481,43 @@ def fetch_icons(color_filter, style_filter, color_palette, iconography, brand_st
         f"{line_thickness} {corner_rounding}"
     )
     # print("Result of process_icons_query-->", result)
-    
-    description_terms = " ".join(description.split(",")[0:4])
 
-    if color_filter and style_filter:
-        querystring = {"term": f"{description_terms} {color_filter_value if color_filter_value else ''} {icon_style if icon_style else ''}, {imagery}", "thumbnail_size": "256", "per_page": "100", "page": "1",
-                       "filters[color]": color_filter_value.lower(), "filters[shape]": icon_style}
-    elif color_filter:
-        querystring = {"term": f"{description_terms} {color_filter_value if color_filter_value else ''} {icon_style if icon_style else ''}, {imagery}", "thumbnail_size": "256", "per_page": "100", "page": "1",
-                       "filters[color]": color_filter_value.lower()}
-    elif style_filter:
-        querystring = {"term": f"{description_terms} , {color_filter_value if color_filter_value else ''} , {icon_style if icon_style else ''}, {imagery}", "thumbnail_size": "256", "per_page": "100", "page": "1",
-                       "filters[shape]": icon_style, "filters[color]": color_filter_value.lower()}
-    else:
-        querystring = {"term": f"{description_terms} {color_filter_value if color_filter_value else ''} {icon_style if icon_style else ''}, {imagery}", "thumbnail_size": "256", "per_page": "100", "page": "1",
-                       "filters[color]": color_filter_value.lower()}
+    # description_terms = " ".join(description.split(","))
+    description += " minimalist, simple, clean, clean lines, simple design"
 
-    querystring['order'] = 'relevance'
+    # Construct querystring based on provided filters
+    querystring = {
+        "term": f"{description}, {color_filter_value if color_filter_value else ''} {icon_style if icon_style else ''}, {imagery}",
+        "thumbnail_size": "256", 
+        "per_page": "100",  # Ensure only 150 icons are fetched
+        "page": "1",       # Fetch the first page
+        "order": 'relevance'
+    }
+
+    # Only include filters if they have valid values
+    if color_filter_value:
+        querystring["filters[color]"] = color_filter_value.lower()
+    if icon_style:  # Only include shape filter if icon_style is provided
+        querystring["filters[shape]"] = icon_style
+    if style_filter:  # Only include style filter if it's True
+        querystring["filters[style]"] = style_filter
+
     # Fetch the first batch of 100 icons
     print("Milos querystring in fetch_icons in utils.py")
     print(querystring)
     response = requests.get(base_url, headers=headers, params=querystring)
     print(response)
     json_data = response.json()
-    
+
     if response.status_code != 200:
         return f_icons_list, result, "Something Wrong with the FreePik API"
     if response.status_code == 200:
         try:
+            print("Response-->", json_data)
             meta = json_data.get("meta")
+            per_page = meta["pagination"]["per_page"]
             total = meta["pagination"]["total"]
+            print("Total Icons-->", per_page)
             if total > 100:
                 is_above_100_icons = True
         except:

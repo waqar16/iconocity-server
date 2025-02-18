@@ -230,7 +230,50 @@ class DownloadIconsZip(APIView):
         response['Content-Disposition'] = 'attachment; filename=icons.zip'
         return response
 
+from rest_framework.response import Response
+from rest_framework.views import APIView
+import requests
 
+
+class DownloadSingleFreepikIconView(APIView):
+    def get(self, request):
+        icon_id = request.GET.get('icon_id')
+        format = request.GET.get('format', default='svg')
+
+        api_key = settings.FREE_PICK_API_KEY  # Replace with your actual API key
+
+        if not icon_id:
+            return Response({"error": "icon_id is required"}, status=400)
+
+        url = f"https://api.freepik.com/v1/icons/{icon_id}/download"
+        params = {"format": format}
+        headers = {
+            "x-freepik-api-key": api_key,
+            # Optionally specify language if needed (e.g., en-US)
+            # "Accept-Language": "en-US"
+        }
+        
+        try:
+            response = requests.get(url, params=params, headers=headers)
+
+            if response.status_code == 200:
+                data = response.json()
+                filename = data["filename"]
+                file_url = data["url"]
+
+                return Response({
+                    "message": f"Icon downloaded successfully: {filename}",
+                    "file_url": file_url,
+                    # Optionally include more details here.
+                })
+            
+            else:
+                return Response({"error": f"Failed to download icon. Status Code: {response.status_code}"}, status=500)
+        
+        except Exception as e:
+            return Response({"error": str(e)}, status=500)
+
+   
 class FigmaLinkProcessAPI(APIView):
     authentication_classes = [CustomTokenAuthentication]
     # permission_classes = [IsAuthenticated]
@@ -805,7 +848,7 @@ class GetHistoryByHistoryIdApi(APIView):
             return Response(response_data, status=status.HTTP_200_OK)
         except Project.history.model.DoesNotExist:
             return Response([], status=status.HTTP_200_OK)
-        
+
     def delete(self, request, *args, **kwargs):
         history_id = request.data.get('history_id')
         if not history_id:
