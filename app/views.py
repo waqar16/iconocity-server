@@ -230,10 +230,6 @@ class DownloadIconsZip(APIView):
         response['Content-Disposition'] = 'attachment; filename=icons.zip'
         return response
 
-from rest_framework.response import Response
-from rest_framework.views import APIView
-import requests
-
 
 class DownloadSingleFreepikIconView(APIView):
     def get(self, request):

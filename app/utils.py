@@ -81,7 +81,8 @@ def process_image_data(image_base64: str):
     # •  Identify the degree of corner rounding in shapes (choose one: Sharp corners, Slightly rounded, Fully rounded).
 
     # 9. Description:
-    # •  Description should contain up to 10 nouns  that best describe the content. Rank the nouns for description according to how well they describe the picture. Give description as single string with list of up to 10 nouns separated by comma, without numbering and new line. Ensure the nouns cover both direct and related concepts to capture a wide variety of possible icons.
+    # •  Description should contain up to 10 nouns that best describe the content. Rank the nouns for description according to how well they describe the picture. Give description as single string with list of up to 10 nouns separated by comma, without numbering and new line. Ensure the nouns cover both direct and related concepts to capture a wide variety of possible icons.
+    # •  If the design represents a specific website page or app screen, include relevant keywords (e.g., "homepage," "profile," "dashboard," "settings").
 
     
     # Output:
@@ -106,13 +107,12 @@ def process_image_data(image_base64: str):
     1. **Color Palette**:
     • Identify the primary color used in the design.
     • Determine the accent color that complements the primary palette.
-    • Note the background color.
     • Assess the contrast level (e.g., high contrast, low contrast).
     • Provide only one major color.
 
     2. **Iconography**:
     • Identify if the design includes any icons.
-    • Describe the style of the icons (choose one: Flat, Outline, Filled).
+    • Describe the style of the icons (choose one: Flat, Outline, Filled, Minimalist).
     • Specify the relative size of the icons (choose one: Small, Medium, Large).
     • Describe the shape of the icons (choose one: Rounded, Square, Freeform).
 
@@ -122,10 +122,11 @@ def process_image_data(image_base64: str):
         • Casual: Relaxed, friendly, lifestyle-oriented.
         • Modern: Minimalistic, clean, simple.
         • Playful: Fun, colorful, energetic.
+    • Identify Freepik-compatible styles (e.g., Minimalist, Flat, Outlined).
     • If the design belongs to a specific industry (e.g., healthcare, technology), specify the industry based on any related symbols or elements (e.g., stethoscopes for healthcare, computers for technology).
 
-    4. **Imagery**:
-    • Identify the style of imagery used (choose one: Illustrative, Photorealistic).
+    4. **Imagery & Illustrations**:
+    • Identify the style of imagery used (choose: UI Icons).
     • Determine the theme of the imagery (choose one: Nature, Technology, Abstract, etc.).
 
     5. **Gradient Usage**:
@@ -137,25 +138,36 @@ def process_image_data(image_base64: str):
     • Determine the use of shadows (choose one: Drop shadows, Inner shadows, None).
     • Specify the depth effect (choose one: Flat, Elevated).
 
-    7. **Line Thickness**:
+    7. **Line Thickness & Stroke**:
     • Assess the consistency of line thickness throughout the design (choose one: Thick, Thin, Variable).
 
     8. **Corner Rounding**:
     • Identify the degree of corner rounding (choose one: Sharp, Slightly Rounded, Fully Rounded).
 
-    9. **Description**:
-    • Generate up to 10 nouns that best describe the content of the design, focusing on both direct and related concepts. 
-    • Ensure the keywords cover a variety of related aspects to ensure diversity in the icons that will be generated. Example: If the design is for a fitness app, keywords might include: "dumbbell," "progress," "stamina," "hydration," "goal tracking," etc.
-    • The comma seprated string of keywords should be ranked according to how well they describe the image, including broader categories like use cases or actions.
-    • Example: "fitness, health, tracking, progress, goals, workout, exercise, gym, wellness, lifestyle"
+    9. **Keyword-Based Content Filtering**:
+    • Generate up to 4 most relevant nouns that best describe the content of the design.
+    • Rank the keywords based on relevance.
+    • Exclude seasonal or unrelated themes (e.g., avoid "Christmas" unless explicitly relevant).
+    • Example: "fitness, health, tracking, gym"
 
     10. **Contextual Understanding**:
     • Consider the context of the design (e.g., is it for a fitness app, medical app, or social network?).
-    • Identify specific functionality that might require a variety of icons, such as icons for tracking, navigation, or social interactions. This will help ensure that icons are not just representative but also fit the intended use case.
+    • Identify specific functionality that might require a variety of icons, such as icons for tracking, navigation, or social interactions.
+    • Ensure icons match the intended use case while filtering out irrelevant themes.
 
     Output:
-    For each of the above attributes, provide specific, relevant details. Avoid vague or non-descriptive answers. The results should reflect diverse and varied aspects of the design, with keywords and icon categories aligned with the design’s context and intended use.
-    """
+    For each of the above attributes, provide specific, relevant details. Avoid vague or non-descriptive answers. The results should reflect diverse and varied aspects of the design, ensuring alignment with Freepik's style filters and intended user context.
+    Example Output:
+        • Color Palette: Blue, Yellow, White, Gradient, Rainbow
+        • Iconography: Flat, Medium, Rounded
+        • Brand Style: Corporate
+        • Imagery: Illustrative, Technology
+        • Gradient Usage: Linear, Blue-Yellow
+        • Shadow and Depth: Drop shadows, Elevated
+        • Line Thickness: Thin
+        • Corner Rounding: Slightly rounded
+        • Description: boxing, gloves, club, website, training, excellence, athletes, sport, youth, sessions"""
+
     # chain decorator to make it runnable
     @chain
     def image_model(inputs: dict):
@@ -483,7 +495,7 @@ def fetch_icons(color_filter, style_filter, color_palette, iconography, brand_st
     # print("Result of process_icons_query-->", result)
 
     # description_terms = " ".join(description.split(","))
-    description += " minimalist, simple, clean, clean lines, simple design"
+    description += " minimalist, UI icon"
 
     # Construct querystring based on provided filters
     querystring = {
